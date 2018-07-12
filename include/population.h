@@ -36,7 +36,7 @@ class Population {
 		Population (const Population&);
 
 		void sortByFitness ();
-		void addRandom (float);
+		void mutation (float);
 		void crossover (float, float);
 		Population nextGeneration ();
 

@@ -1,13 +1,19 @@
 #include<population.h>
 
+float eliteBias = 0.7;
+float eliteRatio = 0.2;
+float mutationRatio = 0.2;
+
 // Initialize static variables with default values
 mt19937 Population::rng = mt19937(random_device()());
 uniform_real_distribution<> Population::dist = uniform_real_distribution<>(0, 1);
 
+// Initialize the random number generator
 void Population::initialize (int seed) {
 	rng = mt19937(seed);
 }
 
+// Initialize a population of size m with chromosomes of length n
 Population::Population (int m, int n) {
 	size = m;
 	chromosome_length = n;
@@ -17,6 +23,7 @@ Population::Population (int m, int n) {
 	}
 }
 
+// Copy constructor
 Population::Population (const Population& original) {
 	size = original.size;
 	chromosome_length = original.chromosome_length;
@@ -26,22 +33,25 @@ Population::Population (const Population& original) {
 	}
 }
 
+// Sort the population by fitness values
 void Population::sortByFitness () {
 	sort(individuals.begin(), individuals.end());
 }
 
-void Population::addRandom (float ratio) {
-	int numRandom = ratio * size;
+// Add mutation
+void Population::mutation (float mutationRatio) {
+	int numMutation = mutationRatio * size;
 
-	for (int i = 1; i <= numRandom; i++) {
+	for (int i = 1; i <= numMutation; i++) {
 		individuals[size - i] = Chromosome(chromosome_length);
 	}
 }
 
-void Population::crossover (float eliteRatio, float randomRatio) {
+// Generate new population by crossover
+void Population::crossover (float eliteRatio, float mutationRatio) {
 	int numElite = eliteRatio * size;
-	int numRandom = randomRatio * size;
-	int numCrossover = size - numElite - numRandom;
+	int numMutation = mutationRatio * size;
+	int numCrossover = size - numElite - numMutation;
 
 	uniform_int_distribution<> eliteDist = uniform_int_distribution<>(0, numElite-1);
 	uniform_int_distribution<> crossoverDist = uniform_int_distribution<>(numElite, numElite + numCrossover - 1);
@@ -51,7 +61,7 @@ void Population::crossover (float eliteRatio, float randomRatio) {
 		int eliteIndex = eliteDist(rng);
 		int crossoverIndex = crossoverDist(rng);
 
-		crossed.push_back(individuals[eliteIndex].crossover(individuals[crossoverIndex], 0.7));
+		crossed.push_back(individuals[eliteIndex].crossover(individuals[crossoverIndex], eliteBias));
 	}
 
 	for (int i = 0; i < numCrossover; i++) {
@@ -59,6 +69,7 @@ void Population::crossover (float eliteRatio, float randomRatio) {
 	}
 }
 
+// Generate the population for the next generation
 Population Population::nextGeneration () {
 	// Sort initial population
 	this->sortByFitness();
@@ -67,12 +78,13 @@ Population Population::nextGeneration () {
 	Population copy = Population(*this);
 
 	// Add random solutions at the end
-	copy.addRandom(0.2);
-	copy.crossover(0.2, 0.2);
+	copy.mutation(mutationRatio);
+	copy.crossover(eliteRatio, mutationRatio);
 
 	return copy;
 }
 
+// Print population
 void Population::print () {
 	cout << "Fitness: " << individuals[0].fitness() << endl << endl;
 }
