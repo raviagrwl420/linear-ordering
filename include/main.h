@@ -1,5 +1,6 @@
 #include<chromosome.h>
 #include<population.h>
+#include<ranking.h>
 
 #include<iostream>
 
