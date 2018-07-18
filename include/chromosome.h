@@ -4,6 +4,7 @@
 #include<random>
 #include<vector>
 #include<iostream>
+#include<functional>
 
 using std::mt19937;
 using std::random_device;
@@ -14,6 +15,8 @@ using std::vector;
 using std::cout;
 using std::endl;
 
+using std::function;
+
 class Chromosome {
 	private:
 		static mt19937 rng;
@@ -21,15 +24,20 @@ class Chromosome {
 
 		int length;
 		vector<float> genes;
+		float fitness = 0;
 
 	public:
 		static void initialize (int);
 
+		Chromosome () {};
 		Chromosome (int);
 		Chromosome (vector<float>);
 		Chromosome (const Chromosome&);
 
-		float fitness ();
+		vector<float> getGenes ();
+		float getFitness ();
+
+		void computeFitness (function<float(Chromosome)>);
 		bool operator < (Chromosome);
 
 		Chromosome crossover (Chromosome, float);

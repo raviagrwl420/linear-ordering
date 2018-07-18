@@ -11,6 +11,15 @@ vector<string> getTokens (string s, string delim) {
 	return tokens;
 }
 
+Ranking::Ranking (const Ranking& original) {
+	numNodes = original.numNodes;
+	m = original.m;
+}
+
+int Ranking::getSize () {
+	return numNodes;
+}
+
 void Ranking::initiate_matrix_from_file () {
 	string line;
 
@@ -37,7 +46,7 @@ void Ranking::initiate_matrix_from_file () {
 	}
 }
 
-void Ranking::print_matrix () {
+void Ranking::print_matrix () const {
 	for (int i = 0; i < numNodes; i++) {
 		for (int j = 0; j < numNodes; j++) {
 			cout << m[i][j] << " ";
@@ -46,7 +55,17 @@ void Ranking::print_matrix () {
 	}
 }
 
-int Ranking::get_weight (int order[]) {
+int Ranking::get_weight (int order[]) const {
+	int weight = 0;
+	for (int i = 0; i < numNodes; i++) {
+		for (int j = i + 1; j < numNodes; j++) {
+			weight += m[order[i]][order[j]];
+		}
+	}
+	return weight;
+}
+
+int Ranking::get_weight (vector<int> order) const {
 	int weight = 0;
 	for (int i = 0; i < numNodes; i++) {
 		for (int j = i + 1; j < numNodes; j++) {

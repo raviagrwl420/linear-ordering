@@ -1,9 +1,5 @@
 #include<population.h>
 
-float eliteBias = 0.7;
-float eliteRatio = 0.2;
-float mutationRatio = 0.2;
-
 // Initialize static variables with default values
 mt19937 Population::rng = mt19937(random_device()());
 uniform_real_distribution<> Population::dist = uniform_real_distribution<>(0, 1);
@@ -27,14 +23,31 @@ Population::Population (int m, int n) {
 Population::Population (const Population& original) {
 	size = original.size;
 	chromosome_length = original.chromosome_length;
+	fitnessFunc = original.fitnessFunc;
 
 	for (int i = 0; i < size; i++) {
 		individuals.push_back(Chromosome(original.individuals[i]));
 	}
 }
 
+// Setter for fitnessFunc
+void Population::setFitnessFunc (function<float(Chromosome)> f) {
+	fitnessFunc = f;
+}
+
+// Compute fitness for the population
+void Population::computeFitness () {
+	for (Chromosome &individual: individuals) {
+		individual.computeFitness(fitnessFunc);
+	}
+}
+
 // Sort the population by fitness values
 void Population::sortByFitness () {
+	// Compute fitness for all chromosomes
+	this->computeFitness();
+
+	// Sort using the sort function which uses the fitness values
 	sort(individuals.begin(), individuals.end());
 }
 
@@ -48,7 +61,7 @@ void Population::mutation (float mutationRatio) {
 }
 
 // Generate new population by crossover
-void Population::crossover (float eliteRatio, float mutationRatio) {
+void Population::crossover (float eliteRatio, float mutationRatio, float eliteBias) {
 	int numElite = eliteRatio * size;
 	int numMutation = mutationRatio * size;
 	int numCrossover = size - numElite - numMutation;
@@ -70,7 +83,7 @@ void Population::crossover (float eliteRatio, float mutationRatio) {
 }
 
 // Generate the population for the next generation
-Population Population::nextGeneration () {
+Population Population::nextGeneration (float eliteRatio, float mutationRatio, float eliteBias) {
 	// Sort initial population
 	this->sortByFitness();
 
@@ -79,12 +92,17 @@ Population Population::nextGeneration () {
 
 	// Add random solutions at the end
 	copy.mutation(mutationRatio);
-	copy.crossover(eliteRatio, mutationRatio);
+	copy.crossover(eliteRatio, mutationRatio, eliteBias);
 
 	return copy;
 }
 
+Chromosome Population::getBest () {
+	this->sortByFitness();
+	return individuals[0];
+}
+
 // Print population
 void Population::print () {
-	cout << "Fitness: " << individuals[0].fitness() << endl << endl;
+	cout << "Fitness: " << individuals[0].getFitness() << endl << endl;
 }

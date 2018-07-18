@@ -31,12 +31,16 @@ class Ranking {
 		ifstream inputFile;
 
 	public:
+		Ranking (const Ranking&);
 		Ranking (const char* s): inputFile(s) {};
 
-		void initiate_matrix_from_file ();
-		void print_matrix ();
+		int getSize ();
 
-		int get_weight (int order[]);
+		void initiate_matrix_from_file ();
+		void print_matrix () const;
+
+		int get_weight (int order[]) const;
+		int get_weight (vector<int>) const;
 };
 
 #endif

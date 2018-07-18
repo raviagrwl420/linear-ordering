@@ -28,26 +28,31 @@ Chromosome::Chromosome (vector<float> genes) {
 // Copy constructor
 Chromosome::Chromosome (const Chromosome& original) {
 	length = original.length;
+	fitness = original.fitness;
 
 	for (int i = 0; i < length; i++) {
 		genes.push_back(original.genes[i]);
 	}
 }
 
-// Compute fitness
-float Chromosome::fitness () {
-	float sum = 0.0;
+// Getter for genes
+vector<float> Chromosome::getGenes () {
+	return genes;
+}
 
-	for (float val : genes) {
-		sum += val;
-	}
+// Getter for fitness
+float Chromosome::getFitness () {
+	return fitness;
+}
 
-	return sum;
+// Compute fitness using function
+void Chromosome::computeFitness (function<float(Chromosome)> fitnessFunc) {
+	fitness = fitnessFunc(*this);
 }
 
 // Implements the `<` operator for sorting
 bool Chromosome::operator < (Chromosome other) {
-	return this->fitness() > other.fitness();
+	return this->fitness > other.fitness;
 }
 
 // Basic crossover operator

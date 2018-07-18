@@ -28,6 +28,7 @@ class Population {
 		int size;
 		int chromosome_length;
 		vector<Chromosome> individuals;
+		function<float(Chromosome)> fitnessFunc;
 
 	public:
 		static void initialize (int);
@@ -35,11 +36,15 @@ class Population {
 		Population (int, int);
 		Population (const Population&);
 
+		void setFitnessFunc (function<float(Chromosome)>);
+
+		void computeFitness ();
 		void sortByFitness ();
 		void mutation (float);
-		void crossover (float, float);
-		Population nextGeneration ();
+		void crossover (float, float, float);
+		Population nextGeneration (float, float, float);
 
+		Chromosome getBest ();
 		void print ();
 };
 

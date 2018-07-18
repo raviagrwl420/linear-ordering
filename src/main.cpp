@@ -1,29 +1,16 @@
 #include<main.h>
 
 int main() {
-	Chromosome::initialize(1);
-	Population::initialize(2);
+	Ranking ranking("./data/N-atp134");
 
-	Population first(100, 10);
+	GeneticSolver solver(ranking);
 
-	first.print();
+	LinearOrder best = solver.solve();
 
-	for (int i = 0; i < 1000; i++) {
-		first = first.nextGeneration();
-		first.sortByFitness();
-		first.print();
-	}
+	cout << "Order is: ";
+	best.printOrder();
 
-	// Chromosome a(10);
-	// Chromosome b(10);
+	cout << endl;
 
-	// a.print();
-	// b.print();
-
-	// float fitness = a.fitness();
-	// cout << fitness << endl;
-
-	// Chromosome c = a.crossover(b, 0.5);
-
-	// c.print();
+	cout << "Weight is: " << solver.getWeight(best) << endl;
 }
