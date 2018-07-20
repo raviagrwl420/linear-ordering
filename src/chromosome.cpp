@@ -72,6 +72,28 @@ Chromosome Chromosome::crossover (Chromosome other, float crossoverBias) {
 	return Chromosome(crossed);
 }
 
+// Modified crossover operator
+Chromosome Chromosome::crossover2 (Chromosome other, float crossoverBias) {
+	LinearOrder thisOrder(this->getGenes());
+	LinearOrder otherOrder(other.getGenes());
+
+	LinearOrder crossedOrder = thisOrder.crossover(otherOrder, crossoverBias);
+
+	vector<int> order = crossedOrder.getOrder();
+
+	float *randoms = new float[length];
+	for (int i = 0; i < length; i++) {
+		randoms[order[i]] = (1.0 * i) / length;
+	}
+
+	vector<float> crossed;
+	for (int i = 0; i < length; i++) {
+		crossed.push_back(randoms[i]);
+	}
+
+	return Chromosome(crossed);
+}
+
 // Print a chromosome
 void Chromosome::print () {
 	for (int i = 0; i < length; i++) {

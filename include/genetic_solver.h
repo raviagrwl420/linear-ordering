@@ -11,9 +11,9 @@ using std::vector;
 
 class GeneticSolver {
 	private:
-		int population_size = 2000;
-		int num_generations = 200;
-		float eliteBias = 0.6;
+		int population_size = 100;
+		int num_generations = 10;
+		float eliteBias = 0.5;
 		float eliteRatio = 0.2;
 		float mutationRatio = 0.2;
 

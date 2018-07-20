@@ -23,6 +23,8 @@ LinearOrder::LinearOrder (int n) {
 	for (int i = 0; i < numNodes; i++) {
 		nodes.push_back(Element(i, dist(rng)));
 	}
+
+	sort(nodes.begin(), nodes.end());
 }
 
 LinearOrder::LinearOrder (vector<float> randoms) {
@@ -31,6 +33,8 @@ LinearOrder::LinearOrder (vector<float> randoms) {
 	for (int i = 0; i < numNodes; i++) {
 		nodes.push_back(Element(i, randoms[i]));
 	}
+
+	sort(nodes.begin(), nodes.end());
 }
 
 LinearOrder::LinearOrder (const LinearOrder& original) {
@@ -44,13 +48,9 @@ LinearOrder::LinearOrder (const LinearOrder& original) {
 }
 
 vector<int> LinearOrder::getOrder () {
-	LinearOrder temp = LinearOrder(*this);
-
-	sort(temp.nodes.begin(), temp.nodes.end());
-
 	vector<int> order;
 	
-	for (Element e: temp.nodes) {
+	for (Element e: nodes) {
 		order.push_back(e.node);
 	}
 
@@ -65,4 +65,93 @@ void LinearOrder::printOrder () {
 	}
 
 	cout << endl;
+}
+
+int LinearOrder::countInversions (LinearOrder& other) {
+	vector<int> originalOrder = this->getOrder();
+	vector<int> otherOrder = other.getOrder();
+
+	int *map = new int[numNodes];
+	for (int i = 0; i < numNodes; i++) {
+		map[originalOrder[i]] = i;
+	}
+
+	int *mapped = new int[numNodes];
+	for (int i = 0; i < numNodes; i++) {
+		mapped[i] = map[otherOrder[i]];
+	}
+
+	int inversions = 0;
+	for (int i = 0; i < numNodes; i++) {
+		for (int j = i + 1; j < numNodes; j++) {
+			if (mapped[j] < mapped[i]) {
+				inversions += 1;
+			}
+		}
+	}
+
+	return inversions;
+}
+
+LinearOrder LinearOrder::crossover (LinearOrder& other, float bias) {
+
+	// cout << "This! ";
+	// this->printOrder();
+	// cout << endl;
+
+	// cout << "Other! ";
+	// other.printOrder();
+	// cout << endl;
+
+	vector<int> originalOrder = this->getOrder();
+	vector<int> otherOrder = other.getOrder();
+
+	int *map = new int[numNodes];
+	for (int i = 0; i < numNodes; i++) {
+		map[originalOrder[i]] = i;
+	}
+
+	int *mapped = new int[numNodes];
+	for (int i = 0; i < numNodes; i++) {
+		mapped[i] = map[otherOrder[i]];
+	}
+
+	for (int i = 0; i < numNodes; i++) {
+		for (int j = 1; j < numNodes; j++) {
+			if (mapped[j-1] < mapped[j]) {
+				continue;
+			}
+
+			float random = dist(rng);
+			if (random < bias) {
+				int temp;
+
+				temp = mapped[j-1];
+				mapped[j-1] = mapped[j];
+				mapped[j] = temp;
+
+				temp = otherOrder[j-1];
+				otherOrder[j-1] = otherOrder[j];
+				otherOrder[j] = temp;
+			}
+		}
+	}
+
+	float *randoms = new float[numNodes];
+	for (int i = 0; i < numNodes; i++) {
+		randoms[otherOrder[i]] = (1.0 * i) / numNodes;
+	}
+
+	vector<float> randomsVec;
+	for (int i = 0; i < numNodes; i++) {
+		randomsVec.push_back(randoms[i]);
+	}
+
+	LinearOrder computed(randomsVec);
+
+	// cout << "Computed! ";
+	// computed.printOrder();
+	// cout << endl;
+
+	return computed;
 }

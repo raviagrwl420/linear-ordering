@@ -43,10 +43,14 @@ class LinearOrder {
 		LinearOrder () {};
 		LinearOrder (int);
 		LinearOrder (vector<float>);
+		LinearOrder (vector<int>);
 		LinearOrder (const LinearOrder&);
 
 		vector<int> getOrder ();
 		void printOrder ();
+
+		int countInversions (LinearOrder&);
+		LinearOrder crossover (LinearOrder&, float bias);
 };
 
 #endif

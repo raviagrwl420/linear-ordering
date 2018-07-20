@@ -1,6 +1,13 @@
 #include<genetic_solver.h>
 
 LinearOrder GeneticSolver::solve () {
+	// Params
+	population_size = 2000;
+	num_generations = 200;
+	eliteBias = 0.5;
+	eliteRatio = 0.2;
+	mutationRatio = 0.2;
+
 	// Initialize RNGs
 	Population::initialize(5);
 	Chromosome::initialize(6);

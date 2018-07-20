@@ -20,6 +20,8 @@ using std::sort;
 using std::cout;
 using std::endl;
 
+enum TYPE {ONE, TWO};
+
 class Population {
 	private:
 		static mt19937 rng;
@@ -41,8 +43,8 @@ class Population {
 		void computeFitness ();
 		void sortByFitness ();
 		void mutation (float);
-		void crossover (float, float, float);
-		Population nextGeneration (float, float, float);
+		void crossover (float, float, float, TYPE);
+		Population nextGeneration (float, float, float, TYPE);
 
 		Chromosome getBest ();
 		void print ();

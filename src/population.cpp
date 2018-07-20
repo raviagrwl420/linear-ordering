@@ -61,20 +61,24 @@ void Population::mutation (float mutationRatio) {
 }
 
 // Generate new population by crossover
-void Population::crossover (float eliteRatio, float mutationRatio, float eliteBias) {
+void Population::crossover (float eliteRatio, float mutationRatio, float eliteBias, TYPE type) {
 	int numElite = eliteRatio * size;
 	int numMutation = mutationRatio * size;
 	int numCrossover = size - numElite - numMutation;
 
 	uniform_int_distribution<> eliteDist = uniform_int_distribution<>(0, numElite-1);
-	uniform_int_distribution<> crossoverDist = uniform_int_distribution<>(numElite, numElite + numCrossover - 1);
+	uniform_int_distribution<> crossoverDist = uniform_int_distribution<>(0, size - 1);
 
 	vector<Chromosome> crossed;
 	for (int i = 1; i <= numCrossover; i++) {
 		int eliteIndex = eliteDist(rng);
 		int crossoverIndex = crossoverDist(rng);
 
-		crossed.push_back(individuals[eliteIndex].crossover(individuals[crossoverIndex], eliteBias));
+		if (type == ONE) {
+			crossed.push_back(individuals[eliteIndex].crossover(individuals[crossoverIndex], eliteBias));	
+		} else {
+			crossed.push_back(individuals[eliteIndex].crossover2(individuals[crossoverIndex], eliteBias));
+		}
 	}
 
 	for (int i = 0; i < numCrossover; i++) {
@@ -83,7 +87,7 @@ void Population::crossover (float eliteRatio, float mutationRatio, float eliteBi
 }
 
 // Generate the population for the next generation
-Population Population::nextGeneration (float eliteRatio, float mutationRatio, float eliteBias) {
+Population Population::nextGeneration (float eliteRatio, float mutationRatio, float eliteBias, TYPE type) {
 	// Sort initial population
 	this->sortByFitness();
 
@@ -92,7 +96,7 @@ Population Population::nextGeneration (float eliteRatio, float mutationRatio, fl
 
 	// Add random solutions at the end
 	copy.mutation(mutationRatio);
-	copy.crossover(eliteRatio, mutationRatio, eliteBias);
+	copy.crossover(eliteRatio, mutationRatio, eliteBias, type);
 
 	return copy;
 }

@@ -1,6 +1,8 @@
 #ifndef CHROMOSOME_H
 #define CHROMOSOME_H
 
+#include<linear_order.h>
+
 #include<random>
 #include<vector>
 #include<iostream>
@@ -41,6 +43,7 @@ class Chromosome {
 		bool operator < (Chromosome);
 
 		Chromosome crossover (Chromosome, float);
+		Chromosome crossover2 (Chromosome, float);
 
 		void print ();
 };
