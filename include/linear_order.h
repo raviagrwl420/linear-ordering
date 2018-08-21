@@ -1,22 +1,14 @@
 #ifndef LINEAR_ORDER_H
 #define LINEAR_ORDER_H
 
-#include<random>
-#include<iostream>
+#include<random.h>
+#include<io.h>
+
 #include<vector>
 #include<algorithm>
 
-using std::mt19937;
-using std::random_device;
-using std::uniform_real_distribution;
-using std::uniform_int_distribution;
-
 using std::vector;
-
 using std::sort;
-
-using std::cout;
-using std::endl;
 
 class Element {
 	public:

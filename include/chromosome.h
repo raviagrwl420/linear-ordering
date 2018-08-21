@@ -2,21 +2,13 @@
 #define CHROMOSOME_H
 
 #include<linear_order.h>
+#include<random.h>
+#include<io.h>
 
-#include<random>
 #include<vector>
-#include<iostream>
 #include<functional>
 
-using std::mt19937;
-using std::random_device;
-using std::uniform_real_distribution;
-
 using std::vector;
-
-using std::cout;
-using std::endl;
-
 using std::function;
 
 class Chromosome {

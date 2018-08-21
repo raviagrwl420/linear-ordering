@@ -1,6 +1,8 @@
 #ifndef RANKING_H
 #define RANKING_H
 
+#include<io.h>
+
 #include<vector>
 #include<string>
 #include<sstream>
@@ -8,7 +10,6 @@
 #include<iterator>
 
 #include<fstream>
-#include<iostream>
 
 using std::vector;
 using std::string;
@@ -20,9 +21,6 @@ using std::back_inserter;
 using std::copy;
 
 using std::ifstream;
-
-using std::cout;
-using std::endl;
 
 class Ranking {
 	private:

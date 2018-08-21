@@ -2,23 +2,14 @@
 #define POPULATION_H
 
 #include<chromosome.h>
+#include<random.h>
+#include<io.h>
 
-#include<random>
 #include<vector>
 #include<algorithm>
-#include<iostream>
-
-using std::mt19937;
-using std::random_device;
-using std::uniform_real_distribution;
-using std::uniform_int_distribution;
 
 using std::vector;
-
 using std::sort;
-
-using std::cout;
-using std::endl;
 
 enum TYPE {ONE, TWO};
 
