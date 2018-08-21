@@ -1,89 +1,121 @@
 #include<linear_order.h>
 
-Element::Element (int n, float v) {
-	node = n;
-	val = v;
+// Create a new node with index i and random value v
+Node::Node (int i, float v) {
+	index = i;
+	random_value = v;
 }
 
-bool Element::operator < (Element other) {
-	return this->val < other.val;
+// Implements the `<` operator for sorting
+bool Node::operator < (Node other) {
+	return this->random_value < other.random_value;
 }
 
 // Initialize static variables with default values
+// Initialize a default random number generator
 mt19937 LinearOrder::rng = mt19937(random_device()());
+
+// Initialize a uniform random distribution [0, 1]
 uniform_real_distribution<> LinearOrder::dist = uniform_real_distribution<>(0, 1);
 
+// Initialize a random number generator with a seed
 void LinearOrder::initialize (int seed) {
 	rng = mt19937(seed);
 }
 
+// Create a permutaion (i.e. a permutation of [1, 2, ... , n]) from a vector of randoms
+vector<int> LinearOrder::getPermutation (vector<float> randoms) {
+	int size = randoms.size();
+
+	vector<Node> nodes;
+	for (int i = 0; i < size; i++) {
+		nodes.push_back(Node(i, randoms[i]));
+	}
+	sort(nodes.begin(), nodes.end());
+
+	vector<int> permutation;
+	for (Node node: nodes) {
+		permutation.push_back(node.index);
+	}
+
+	return permutation;
+}
+
+// Create a new random linear order of size n.
 LinearOrder::LinearOrder (int n) {
-	numNodes = n;
+	size = n;
 	
-	for (int i = 0; i < numNodes; i++) {
-		nodes.push_back(Element(i, dist(rng)));
+	vector<float> randoms;
+	for (int i = 0; i < size; i++) {
+		randoms.push_back(dist(rng));
 	}
 
-	sort(nodes.begin(), nodes.end());
+	order = getPermutation(randoms);
 }
 
+// Create a new linear order from a vector of randoms
 LinearOrder::LinearOrder (vector<float> randoms) {
-	numNodes = randoms.size();
+	size = randoms.size();
 
-	for (int i = 0; i < numNodes; i++) {
-		nodes.push_back(Element(i, randoms[i]));
-	}
-
-	sort(nodes.begin(), nodes.end());
+	order = getPermutation(randoms);
 }
 
+// Create a new linear order from a vector of ints
+LinearOrder::LinearOrder (vector<int> order) {
+	size = order.size();
+
+	vector<int> thisOrder = this->order;
+	for (int i = 0; i < size; i++) {
+		thisOrder.push_back(order[i]);
+	}
+}
+
+// Copy constructor
 LinearOrder::LinearOrder (const LinearOrder& original) {
-	numNodes = original.numNodes;
+	size = original.size;
 
-	for (int i = 0; i < numNodes; i++) {
-		Element originalNode = original.nodes[i];
-
-		nodes.push_back(Element(originalNode.node, originalNode.val));
+	for (int i = 0; i < size; i++) {
+		order.push_back(original.order[i]);
 	}
 }
 
+// Getter for order
 vector<int> LinearOrder::getOrder () {
-	vector<int> order;
+	vector<int> orderCopy;
 	
-	for (Element e: nodes) {
-		order.push_back(e.node);
+	for (int node: order) {
+		orderCopy.push_back(node);
 	}
 
-	return order;
+	return orderCopy;
 }
 
+// Print order
 void LinearOrder::printOrder () {
-	vector<int> order = this->getOrder();
-
 	for (int node: order) {
 		cout << node << " ";
 	}
-
 	cout << endl;
 }
 
+// Count inversions between two linear orders
 int LinearOrder::countInversions (LinearOrder& other) {
 	vector<int> originalOrder = this->getOrder();
 	vector<int> otherOrder = other.getOrder();
 
-	int *map = new int[numNodes];
-	for (int i = 0; i < numNodes; i++) {
+	int *map = new int[size];
+	for (int i = 0; i < size; i++) {
 		map[originalOrder[i]] = i;
 	}
 
-	int *mapped = new int[numNodes];
-	for (int i = 0; i < numNodes; i++) {
+	int *mapped = new int[size];
+	for (int i = 0; i < size; i++) {
 		mapped[i] = map[otherOrder[i]];
 	}
 
 	int inversions = 0;
-	for (int i = 0; i < numNodes; i++) {
-		for (int j = i + 1; j < numNodes; j++) {
+	for (int i = 0; i < size; i++) {
+		for (int j = i + 1; j < size; j++) {
 			if (mapped[j] < mapped[i]) {
 				inversions += 1;
 			}
@@ -93,31 +125,23 @@ int LinearOrder::countInversions (LinearOrder& other) {
 	return inversions;
 }
 
+// Implements crossover operator between two linear orders
 LinearOrder LinearOrder::crossover (LinearOrder& other, float bias) {
-
-	// cout << "This! ";
-	// this->printOrder();
-	// cout << endl;
-
-	// cout << "Other! ";
-	// other.printOrder();
-	// cout << endl;
-
 	vector<int> originalOrder = this->getOrder();
 	vector<int> otherOrder = other.getOrder();
 
-	int *map = new int[numNodes];
-	for (int i = 0; i < numNodes; i++) {
+	int *map = new int[size];
+	for (int i = 0; i < size; i++) {
 		map[originalOrder[i]] = i;
 	}
 
-	int *mapped = new int[numNodes];
-	for (int i = 0; i < numNodes; i++) {
+	int *mapped = new int[size];
+	for (int i = 0; i < size; i++) {
 		mapped[i] = map[otherOrder[i]];
 	}
 
-	for (int i = 0; i < numNodes; i++) {
-		for (int j = 1; j < numNodes; j++) {
+	for (int i = 0; i < size; i++) {
+		for (int j = 1; j < size; j++) {
 			if (mapped[j-1] < mapped[j]) {
 				continue;
 			}
@@ -137,21 +161,5 @@ LinearOrder LinearOrder::crossover (LinearOrder& other, float bias) {
 		}
 	}
 
-	float *randoms = new float[numNodes];
-	for (int i = 0; i < numNodes; i++) {
-		randoms[otherOrder[i]] = (1.0 * i) / numNodes;
-	}
-
-	vector<float> randomsVec;
-	for (int i = 0; i < numNodes; i++) {
-		randomsVec.push_back(randoms[i]);
-	}
-
-	LinearOrder computed(randomsVec);
-
-	// cout << "Computed! ";
-	// computed.printOrder();
-	// cout << endl;
-
-	return computed;
+	return LinearOrder(otherOrder);
 }

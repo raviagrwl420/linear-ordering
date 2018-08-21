@@ -10,15 +10,15 @@
 using std::vector;
 using std::sort;
 
-class Element {
+class Node {
 	public:
-		int node;
-		float val;
+		int index;
+		float random_value;
 
-		Element () {};
-		Element (int, float);
+		Node () {};
+		Node (int, float);
 
-		bool operator < (Element);
+		bool operator < (Node);
 };
 
 class LinearOrder {
@@ -26,8 +26,9 @@ class LinearOrder {
 		static mt19937 rng;
 		static uniform_real_distribution<> dist;
 		
-		int numNodes;
-		vector<Element> nodes;
+		int size;
+		vector<int> order;
+		vector<Node> nodes;
 	
 	public:
 		static void initialize (int);
@@ -38,6 +39,7 @@ class LinearOrder {
 		LinearOrder (vector<int>);
 		LinearOrder (const LinearOrder&);
 
+		vector<int> getPermutation (vector<float> randoms);
 		vector<int> getOrder ();
 		void printOrder ();
 
