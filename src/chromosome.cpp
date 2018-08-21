@@ -1,15 +1,18 @@
 #include<chromosome.h>
 
 // Initialize static variables with default values
+// Initialize a default random number generator
 mt19937 Chromosome::rng = mt19937(random_device()());
+
+// Initialize a uniform random distribution [0, 1]
 uniform_real_distribution<> Chromosome::dist = uniform_real_distribution<>(0, 1);
 
-// Initialize the random number generator
+// Initialize a random number generator with a seed
 void Chromosome::initialize (int seed) {
 	rng = mt19937(seed);
 }
 
-// Create a new chromosome of length n with random genes with values [0, 1]
+// Create a new chromosome of length n with genes having random values from [0, 1]
 Chromosome::Chromosome (int n) {
 	length = n;
 
@@ -19,10 +22,13 @@ Chromosome::Chromosome (int n) {
 	}
 }
 
-// Create a new chromosome with the genes passed as argument
-Chromosome::Chromosome (vector<float> genes) {
-	this->length = genes.size();
-	this->genes = genes;
+// Create a new chromosome copying the genes passed as argument
+Chromosome::Chromosome (vector<float> original_genes) {
+	length = original_genes.size();
+
+	for (int i = 0; i < length; i++) {
+		genes.push_back(original_genes[i]);
+	}
 }
 
 // Copy constructor
@@ -45,7 +51,7 @@ float Chromosome::getFitness () {
 	return fitness;
 }
 
-// Compute fitness using function
+// Compute fitness using passed function
 void Chromosome::computeFitness (function<float(Chromosome)> fitnessFunc) {
 	fitness = fitnessFunc(*this);
 }
