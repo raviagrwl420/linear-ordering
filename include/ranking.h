@@ -24,8 +24,8 @@ using std::ifstream;
 
 class Ranking {
 	private:
-		int numNodes;
-		int **m;
+		int size;
+		int **matrix;
 		ifstream inputFile;
 
 	public:
@@ -34,11 +34,11 @@ class Ranking {
 
 		int getSize ();
 
-		void initiate_matrix_from_file ();
-		void print_matrix () const;
+		void initiateMatrixFromFile ();
+		void printMatrix () const;
 
-		int get_weight (int order[]) const;
-		int get_weight (vector<int>) const;
+		int getWeight (int order[]) const;
+		int getWeight (vector<int>) const;
 };
 
 #endif

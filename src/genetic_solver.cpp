@@ -2,7 +2,7 @@
 
 LinearOrder GeneticSolver::solve () {
 	// Params
-	population_size = 2000;
+	population_size = 200;
 	num_generations = 200;
 	eliteBias = 0.5;
 	eliteRatio = 0.2;
@@ -14,7 +14,7 @@ LinearOrder GeneticSolver::solve () {
 	LinearOrder::initialize(7);
 
 	// Initialize the matrix
-	r.initiate_matrix_from_file();
+	r.initiateMatrixFromFile();
 
 	// Chromosome length equals the size of the square matrix
 	int chromosome_length = r.getSize();
@@ -26,7 +26,7 @@ LinearOrder GeneticSolver::solve () {
 	Ranking ranking = r;
 	function<float(Chromosome)> fitnessFunc = [ranking] (Chromosome chromosome) -> float {
 		LinearOrder order(chromosome.getGenes());
-		float weight = ranking.get_weight(order.getOrder());
+		float weight = ranking.getWeight(order.getOrder());
 		return weight;
 	};
 
@@ -38,10 +38,10 @@ LinearOrder GeneticSolver::solve () {
 	LinearOrder bestOrder;
 	Population nextGen = first;
 	for (int i = 0; i < num_generations; i++) {
-		nextGen = nextGen.nextGeneration(eliteRatio, mutationRatio, eliteBias);
+		nextGen = nextGen.nextGeneration(eliteRatio, mutationRatio, eliteBias, ONE);
 		best = nextGen.getBest();
 		bestOrder = LinearOrder(best.getGenes());
-		float weight = ranking.get_weight(bestOrder.getOrder());
+		float weight = ranking.getWeight(bestOrder.getOrder());
 		cout << "Generation " << i << " Weight: " << weight << endl;
 	}
 
@@ -49,5 +49,5 @@ LinearOrder GeneticSolver::solve () {
 }
 
 float GeneticSolver::getWeight (LinearOrder order) {
-	return r.get_weight(order.getOrder());
+	return r.getWeight(order.getOrder());
 }

@@ -12,24 +12,24 @@ vector<string> getTokens (string s, string delim) {
 }
 
 Ranking::Ranking (const Ranking& original) {
-	numNodes = original.numNodes;
-	m = original.m;
+	size = original.size;
+	matrix = original.matrix;
 }
 
 int Ranking::getSize () {
-	return numNodes;
+	return size;
 }
 
-void Ranking::initiate_matrix_from_file () {
+void Ranking::initiateMatrixFromFile () {
 	string line;
 
 	getline(inputFile, line);
-	numNodes = stoi(line);
+	size = stoi(line);
 
-	m = new int*[numNodes];
+	matrix = new int*[size];
 
-	for (int i = 0; i < numNodes; i++) {
-		m[i] = new int[numNodes];
+	for (int i = 0; i < size; i++) {
+		matrix[i] = new int[size];
 	}
 
 	int i = 0;
@@ -39,37 +39,37 @@ void Ranking::initiate_matrix_from_file () {
 		int j = 0;
 		for (string token: tokens) {
 			int m_ij = stoi(token);
-			m[i][j++] = m_ij;
+			matrix[i][j++] = m_ij;
 		}
 
 		i++;
 	}
 }
 
-void Ranking::print_matrix () const {
-	for (int i = 0; i < numNodes; i++) {
-		for (int j = 0; j < numNodes; j++) {
-			cout << m[i][j] << " ";
+void Ranking::printMatrix () const {
+	for (int i = 0; i < size; i++) {
+		for (int j = 0; j < size; j++) {
+			cout << matrix[i][j] << " ";
 		}
 		cout << endl;
 	}
 }
 
-int Ranking::get_weight (int order[]) const {
+int Ranking::getWeight (int order[]) const {
 	int weight = 0;
-	for (int i = 0; i < numNodes; i++) {
-		for (int j = i + 1; j < numNodes; j++) {
-			weight += m[order[i]][order[j]];
+	for (int i = 0; i < size; i++) {
+		for (int j = i + 1; j < size; j++) {
+			weight += matrix[order[i]][order[j]];
 		}
 	}
 	return weight;
 }
 
-int Ranking::get_weight (vector<int> order) const {
+int Ranking::getWeight (vector<int> order) const {
 	int weight = 0;
-	for (int i = 0; i < numNodes; i++) {
-		for (int j = i + 1; j < numNodes; j++) {
-			weight += m[order[i]][order[j]];
+	for (int i = 0; i < size; i++) {
+		for (int j = i + 1; j < size; j++) {
+			weight += matrix[order[i]][order[j]];
 		}
 	}
 	return weight;
