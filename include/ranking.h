@@ -35,6 +35,7 @@ class Ranking {
 		int getSize ();
 
 		void initiateMatrixFromFile ();
+		int **getMatrix () const;
 		void printMatrix () const;
 
 		int getWeight (int order[]) const;
