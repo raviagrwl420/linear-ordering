@@ -43,6 +43,9 @@ class LinearOrder {
 		vector<int> getOrder ();
 		void printOrder ();
 
+		int improvementForInsertMove(int**, int, int);
+		void applyInsertMove (int, int);
+
 		int countInversions (LinearOrder&);
 		LinearOrder crossover (LinearOrder&, float bias);
 };

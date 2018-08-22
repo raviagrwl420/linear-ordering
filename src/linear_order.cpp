@@ -98,6 +98,40 @@ void LinearOrder::printOrder () {
 	cout << endl;
 }
 
+// Compute improvement for an insert move from nodeIndex to insertIndex
+int LinearOrder::improvementForInsertMove(int** matrix, int nodeIndex, int insertIndex) {
+	int improvement = 0;
+
+	if (nodeIndex < insertIndex) {
+		for (int i = insertIndex; i > nodeIndex; i--) {
+			improvement += matrix[order[i]][order[nodeIndex]] - matrix[order[nodeIndex]][order[i]];
+		}
+	} else {
+		for (int i = insertIndex; i < nodeIndex; i++) {
+			improvement += matrix[order[nodeIndex]][order[i]] - matrix[order[i]][order[nodeIndex]];
+		}
+	}
+
+	return improvement;
+}
+
+// Apply the insert move, the node at nodeIndex is moved to insertIndex
+void LinearOrder::applyInsertMove (int nodeIndex, int insertIndex) {
+	int node = order[nodeIndex];
+
+	if (nodeIndex < insertIndex) {
+		for (int i = nodeIndex; i < insertIndex; i++) {
+			order[i] = order[i+1];
+		}
+	} else {
+		for (int i = nodeIndex; i > insertIndex; i--) {
+			order[i] = order[i-1];
+		}
+	}
+
+	order[insertIndex] = node;
+}
+
 // Count inversions between two linear orders
 int LinearOrder::countInversions (LinearOrder& other) {
 	vector<int> originalOrder = this->getOrder();
