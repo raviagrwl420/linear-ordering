@@ -71,16 +71,6 @@ void Ranking::printMatrix () const {
 	}
 }
 
-int Ranking::getWeight (int order[]) const {
-	int weight = 0;
-	for (int i = 0; i < size; i++) {
-		for (int j = i + 1; j < size; j++) {
-			weight += matrix[order[i]][order[j]];
-		}
-	}
-	return weight;
-}
-
 int Ranking::getWeight (vector<int> order) const {
 	int weight = 0;
 	for (int i = 0; i < size; i++) {

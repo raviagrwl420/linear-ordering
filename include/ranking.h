@@ -38,7 +38,6 @@ class Ranking {
 		int **getMatrix () const;
 		void printMatrix () const;
 
-		int getWeight (int order[]) const;
 		int getWeight (vector<int>) const;
 };
 
