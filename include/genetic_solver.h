@@ -4,6 +4,7 @@
 #include<ranking.h>
 #include<linear_order.h>
 #include<population.h>
+#include<local_search.h>
 
 #include<vector>
 
@@ -22,7 +23,7 @@ class GeneticSolver {
 	public:
 		GeneticSolver (Ranking &r): r(r) {}
 
-		LinearOrder solve ();
+		LinearOrder solve (bool);
 		float getWeight (LinearOrder);
 };
 

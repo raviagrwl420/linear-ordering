@@ -16,7 +16,7 @@ int main() {
 
 	GeneticSolver solver(ranking);
 
-	LinearOrder best = solver.solve();
+	LinearOrder best = solver.solve(true);
 
 	cout << "Order is: ";
 	best.printOrder();

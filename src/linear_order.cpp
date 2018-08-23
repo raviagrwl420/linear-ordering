@@ -61,12 +61,11 @@ LinearOrder::LinearOrder (vector<float> randoms) {
 }
 
 // Create a new linear order from a vector of ints
-LinearOrder::LinearOrder (vector<int> order) {
-	size = order.size();
+LinearOrder::LinearOrder (vector<int> original) {
+	size = original.size();
 
-	vector<int> thisOrder = this->order;
 	for (int i = 0; i < size; i++) {
-		thisOrder.push_back(order[i]);
+		order.push_back(original[i]);
 	}
 }
 

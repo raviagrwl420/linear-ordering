@@ -58,7 +58,7 @@ LNDIRS := -L $(CPLEXLIBDIR) -L $(CONCERTLIBDIR)
 LNFLAGS := -lilocplex -lconcert -lcplex -lm -lpthread -ldl
 
 # CPP Flags
-CPPFLAGS := -std=c++11 -w -DIL_STD $(INCDIRS) $(LNDIRS) $(LNFLAGS)
+CPPFLAGS := -g -std=c++11 -w -DIL_STD $(INCDIRS) $(LNDIRS) $(LNFLAGS)
 
 
 
