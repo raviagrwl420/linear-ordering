@@ -2,6 +2,8 @@
 #define POPULATION_H
 
 #include<chromosome.h>
+#include<linear_order.h>
+#include<local_search.h>
 #include<random.h>
 #include<io.h>
 
@@ -35,6 +37,7 @@ class Population {
 		void sortByFitness ();
 		void mutation (float);
 		void crossover (float, float, float, TYPE);
+		void performLocalSearch (function<LinearOrder(Chromosome)> localSearchProcedure);
 		Population nextGeneration (float, float, float, TYPE);
 
 		Chromosome getBest ();

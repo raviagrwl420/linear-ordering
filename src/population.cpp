@@ -89,6 +89,16 @@ void Population::crossover (float eliteRatio, float mutationRatio, float eliteBi
 	}
 }
 
+// Perform local search on the entire population
+void Population::performLocalSearch (function<LinearOrder(Chromosome)> localSearchProcedure) {
+	for (Chromosome &individual: individuals) {
+		LinearOrder order = localSearchProcedure(individual);
+
+		// Create a new chromosome for the locally optimal solution
+		individual = Chromosome(order.getOrder());
+	}
+}
+
 // Generate the population for the next generation
 Population Population::nextGeneration (float eliteRatio, float mutationRatio, float eliteBias, TYPE type) {
 	// Sort initial population
