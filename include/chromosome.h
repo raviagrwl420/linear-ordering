@@ -11,6 +11,17 @@
 using std::vector;
 using std::function;
 
+class Gene {
+	public:
+		int index;
+		float random_value;
+
+		Gene () {};
+		Gene (int, float);
+
+		bool operator < (Gene);
+};
+
 class Chromosome {
 	private:
 		static mt19937 rng;
@@ -26,6 +37,7 @@ class Chromosome {
 		Chromosome () {};
 		Chromosome (int);
 		Chromosome (vector<float>);
+		Chromosome (vector<int>);
 		Chromosome (const Chromosome&);
 
 		vector<float> getGenes ();

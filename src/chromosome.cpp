@@ -1,5 +1,16 @@
 #include<chromosome.h>
 
+// Create a new gene with index i and random value v
+Gene::Gene (int i, float v) {
+	index = i;
+	random_value = v;
+}
+
+// Implements the `<` operator for sorting
+bool Gene::operator < (Gene other) {
+	return this->index < other.index;
+}
+
 // Initialize static variables with default values
 // Initialize a default random number generator
 mt19937 Chromosome::rng = mt19937(random_device()());
@@ -28,6 +39,29 @@ Chromosome::Chromosome (vector<float> original_genes) {
 
 	for (int i = 0; i < length; i++) {
 		genes.push_back(original_genes[i]);
+	}
+}
+
+// Create a new chromosome from the passed linear order
+Chromosome::Chromosome (vector<int> order) {
+	length = order.size();
+
+	for (int i = 0; i < length; i++) {
+		float gene = dist(rng);
+		genes.push_back(gene);
+	}
+
+	// Sort the genes in the chromosome
+	sort(genes.begin(), genes.end());
+
+	vector<Gene> geneVec;
+	for (int i = 0; i < length; i++) {
+		geneVec.push_back(Gene(order[i], genes[i]));
+	}
+	sort(geneVec.begin(), geneVec.end());
+
+	for (int i = 0; i < length; i++) {
+		genes[i] = geneVec[i].random_value;
 	}
 }
 
