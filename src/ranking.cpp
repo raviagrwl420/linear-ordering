@@ -16,7 +16,7 @@ Ranking::Ranking (const Ranking& original) {
 	matrix = original.matrix;
 }
 
-int Ranking::getSize () {
+int Ranking::getSize () const {
 	return size;
 }
 

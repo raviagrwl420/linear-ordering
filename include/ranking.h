@@ -32,7 +32,7 @@ class Ranking {
 		Ranking (const Ranking&);
 		Ranking (const char* s): inputFile(s) {};
 
-		int getSize ();
+		int getSize () const;
 
 		void initiateMatrixFromFile ();
 		int **getMatrix () const;
