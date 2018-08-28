@@ -30,7 +30,7 @@ class Ranking {
 
 	public:
 		Ranking (const Ranking&);
-		Ranking (const char* s): inputFile(s) {};
+		Ranking (const char*);
 		Ranking (int size, int** matrix): size(size), matrix(matrix) {};
 
 		int getSize () const;

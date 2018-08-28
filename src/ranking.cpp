@@ -16,6 +16,11 @@ Ranking::Ranking (const Ranking& original) {
 	matrix = original.matrix;
 }
 
+Ranking::Ranking (const char* s) {
+	inputFile = ifstream(s);
+	initiateMatrixFromFile();
+}
+
 int Ranking::getSize () const {
 	return size;
 }
