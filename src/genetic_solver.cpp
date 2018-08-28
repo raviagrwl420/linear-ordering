@@ -1,8 +1,77 @@
 #include<genetic_solver.h>
 
+LinearOrder recursiveSlidingWindow (Ranking& ranking, LinearOrder order) {
+	int partitions = 2;
+	int minSize = 70;
+
+	int size = ranking.getSize();
+
+	if (size < minSize) {
+		return order;
+	}
+
+	int** matrix = ranking.getMatrix();
+
+	int partitionSize = size / partitions;
+	int partitionGap = size % partitions;
+
+	vector<int> orderVec = order.getOrder();
+
+	vector<int> newOrder;
+	for (int i = 0; i < size - partitionSize + 1; i++) {
+		vector<int> partition;
+		for (int j = i; j < i + partitionSize; j++) {
+			partition.push_back(orderVec[j]);
+		}
+
+		int** partialMatrix = new int*[partitionSize];
+		for (int j = 0; j < partitionSize; j++) {
+			partialMatrix[j] = new int[partitionSize];
+		}
+
+		for (int j = 0; j < partitionSize; j++) {
+			for (int k = 0; k < partitionSize; k++) {
+				partialMatrix[j][k] = matrix[partition[j]][partition[k]];
+			}
+		}
+
+		Ranking newRanking(partitionSize, partialMatrix);
+
+		GeneticSolver recursiveSolver(newRanking);
+
+		LinearOrder partialOrder = recursiveSolver.solve(false);
+
+		vector<int> partialOrderVec = partialOrder.getOrder();
+
+		// for (int j = 0; j < partitionSize; j++) {
+			// newOrder.push_back(partition[partialOrderVec[j]]);
+		// }
+
+		if (i == size - partitionSize) {
+			for (int j = 0; j < partitionSize; j++) {
+				newOrder.push_back(partition[partialOrderVec[j]]);
+			}
+		} else {
+			newOrder.push_back(partition[partialOrderVec[0]]);
+		}
+	}
+
+	// for (int i = partitions * partitionSize; i < size; i++) {
+	// 	newOrder.push_back(orderVec[i]);
+	// }
+
+	LinearOrder newestOrder = LinearOrder(newOrder);
+
+	if (ranking.getWeight(newOrder) < ranking.getWeight(orderVec)) {
+		return order;
+	}
+
+	return newestOrder;
+}
+
 LinearOrder recursiveRefinement (Ranking& ranking, LinearOrder order) {
 	int partitions = 2;
-	int minSize = 50;
+	int minSize = 20;
 
 	int size = ranking.getSize();
 
@@ -55,11 +124,26 @@ LinearOrder recursiveRefinement (Ranking& ranking, LinearOrder order) {
 
 	LinearOrder newestOrder = LinearOrder(newOrder);
 
+	if (ranking.getWeight(newOrder) < ranking.getWeight(orderVec)) {
+		return order;
+	}
+
 	return newestOrder;
 }
 
+int computeMaxPossible (int size, int** m) {
+	int max = 0;
+
+	for (int i = 0; i < size; i++) {
+		for (int j = i + 1; j < size; j++) {
+			max += m[i][j] > m[j][i] ? m[i][j] : m[j][i];
+		}
+	}
+
+	return max;
+}
+
 LinearOrder GeneticSolver::solve (bool file) {
-	cout << "Solver!" << endl;
 	// Params
 	population_size = 100;
 	num_generations = 100;
@@ -115,7 +199,7 @@ LinearOrder GeneticSolver::solve (bool file) {
 		cout << "Generation " << i << " Weight: " << weight << endl;
 	}
 
-	LinearOrder newOrder = recursiveRefinement(ranking, bestOrder);
+	LinearOrder newOrder = recursiveSlidingWindow(ranking, bestOrder);
 
 	return newOrder;
 }
