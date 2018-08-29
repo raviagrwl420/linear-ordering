@@ -39,6 +39,8 @@ class LinearOrder {
 		LinearOrder (vector<int>);
 		LinearOrder (const LinearOrder&);
 
+		bool validate ();
+
 		vector<int> getPermutation (vector<float> randoms);
 		vector<int> getOrder ();
 		void printOrder ();

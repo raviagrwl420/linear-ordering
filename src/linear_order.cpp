@@ -78,6 +78,28 @@ LinearOrder::LinearOrder (const LinearOrder& original) {
 	}
 }
 
+bool LinearOrder::validate () {
+	int* arr = new int[size];
+
+	for (int i = 0; i < size; i++) {
+		arr[i] = 0;
+	}
+
+	for (int i = 0; i < size; i++) {
+		arr[order[i]] = 1;
+	}
+
+	int sum = 0;
+	for (int i = 0; i < size; i++) {
+		if (arr[i] == 0) {
+			cout << "i: " << i << endl;
+		}
+		sum += arr[i];
+	}
+
+	return sum == size;
+}
+
 // Getter for order
 vector<int> LinearOrder::getOrder () {
 	vector<int> orderCopy;
