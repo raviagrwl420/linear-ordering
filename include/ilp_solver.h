@@ -8,5 +8,6 @@
 
 LinearOrder solveLP (Ranking&);
 LinearOrder solveILP (Ranking&);
+LinearOrder solvePartition (Ranking&);
 
 #endif
