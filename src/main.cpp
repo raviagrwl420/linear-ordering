@@ -15,7 +15,10 @@ int main(int argc, char** argv) {
 	cout << argv[1] << endl;
 	Ranking ranking(argv[1]);
 
-	LinearOrder best = solvePartition(ranking);
+	float** fractionals = solveLP(ranking);
+
+	LinearOrder best = solvePartition(ranking.getSize(), fractionals, ranking);
+	// LinearOrder best = solvePartition(ranking);
 
 
 	// GeneticSolver solver(ranking);
@@ -28,6 +31,6 @@ int main(int argc, char** argv) {
 
 	cout << "Valid: " << best.validate() << endl;
 
-	// cout << "Weight is: " << solver.getWeight(best) << endl;
+	// // cout << "Weight is: " << solver.getWeight(best) << endl;
 	cout << "Weight is: " << ranking.getWeight(best.getOrder()) << endl;
 }

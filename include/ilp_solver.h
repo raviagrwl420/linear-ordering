@@ -7,8 +7,9 @@
 
 #include<ilcplex/ilocplex.h>
 
-LinearOrder solveLP (Ranking&);
+float** solveLP (Ranking&);
 LinearOrder solveILP (Ranking&);
 LinearOrder solvePartition (Ranking&);
+LinearOrder solvePartition (int size, float** fractionals, Ranking& ranking);
 
 #endif
