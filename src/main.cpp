@@ -1,6 +1,6 @@
 #include<main.h>
 
-int main() {
+int main(int argc, char** argv) {
 
 	// LinearOrder p1(10);
 	// LinearOrder p2(10);
@@ -12,16 +12,22 @@ int main() {
 
 	// p3.printOrder();
 
-	Ranking ranking("./data/N-atp134");
+	cout << argv[1] << endl;
+	Ranking ranking(argv[1]);
 
-	GeneticSolver solver(ranking);
+	LinearOrder best = solvePartition(ranking);
 
-	LinearOrder best = solver.solve(true);
+
+	// GeneticSolver solver(ranking);
+
+	// LinearOrder best = solver.solve(true);
 
 	cout << "Order is: ";
 	best.printOrder();
-
 	cout << endl;
 
-	cout << "Weight is: " << solver.getWeight(best) << endl;
+	cout << "Valid: " << best.validate() << endl;
+
+	// cout << "Weight is: " << solver.getWeight(best) << endl;
+	cout << "Weight is: " << ranking.getWeight(best.getOrder()) << endl;
 }

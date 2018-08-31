@@ -61,6 +61,8 @@ LinearOrder solveLP (Ranking& ranking) {
 }
 
 LinearOrder solveILP (Ranking& ranking) {
+	// IloCplex::setParam(IloCplex::Param::MIP::Tolerances::Integrality, 0);
+
 	int size = ranking.getSize();
 	int** matrix = ranking.getMatrix();
 
@@ -69,6 +71,8 @@ LinearOrder solveILP (Ranking& ranking) {
 		IloEnv env;
 		IloModel model(env);
 		IloCplex cplex(model);
+
+		cplex.setParam(IloCplex::Param::MIP::Tolerances::Integrality, 0);
 
 		// Initialize variable array
 		IloArray<IloBoolVarArray> x(env, size);
@@ -128,6 +132,7 @@ LinearOrder solveILP (Ranking& ranking) {
 		// Insert the node in its proper position in the order
 		int* orderArray = new int[size];
 		for (int i = 0; i < size; i++) {
+			cout << "Totals: " << totals[i] << endl;
 			int index = (size - 1) - totals[i];
 			orderArray[index] = i;
 		}
@@ -136,6 +141,8 @@ LinearOrder solveILP (Ranking& ranking) {
 		for (int i = 0; i < size; i++) {
 			orderVec.push_back(orderArray[i]);
 		}
+
+		cout << "ILP Valid: " << LinearOrder(orderVec).validate() << endl;
 
 		return LinearOrder(orderVec);
 	} catch (IloException& e) {
@@ -166,7 +173,7 @@ LinearOrder solveRecursive(int size, int** partitionMatrix) {
 	cout << endl << "**********Size**********" << endl << size << endl << endl;
 
 	LinearOrder solved;
-	if (size < 30) {
+	if (size < 35) {
 		solved = solveILP(ranking);
 	} else {
 		solved = solvePartition(ranking);
@@ -249,6 +256,16 @@ LinearOrder solvePartition (Ranking& ranking) {
 		for (int i = 0; i < size2; i++) {
 			finalOrder.push_back(partition2[order2Vec[i]]);
 		}
+
+		LinearOrder bestOrder(finalOrder);
+
+		cout << "Original Weight: " << ranking.getWeight(bestOrder.getOrder()) << endl;
+
+		LinearOrder improvedOrder = localSearchExpensive(size, matrix, bestOrder);
+
+		cout << "Improved Weight: " << ranking.getWeight(improvedOrder.getOrder()) << endl; 
+
+		return improvedOrder;
 
 		return LinearOrder(finalOrder);
 	} catch (IloException& e) {
