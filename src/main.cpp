@@ -15,10 +15,10 @@ int main(int argc, char** argv) {
 	cout << argv[1] << endl;
 	Ranking ranking(argv[1]);
 
-	float** fractionals = solveLP(ranking);
+	// float** fractionals = solveLP(ranking);
 
-	LinearOrder best = solvePartition(ranking.getSize(), fractionals, ranking);
-	// LinearOrder best = solvePartition(ranking);
+	// LinearOrder best = solvePartition(ranking.getSize(), fractionals, ranking);
+	LinearOrder best = solveILP(ranking);
 
 
 	// GeneticSolver solver(ranking);

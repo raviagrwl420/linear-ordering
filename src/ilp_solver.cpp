@@ -76,7 +76,6 @@ float** solveLP (Ranking& ranking) {
 
 LinearOrder solveILP (Ranking& ranking) {
 	// IloCplex::setParam(IloCplex::Param::MIP::Tolerances::Integrality, 0);
-
 	int size = ranking.getSize();
 	int** matrix = ranking.getMatrix();
 
@@ -93,6 +92,10 @@ LinearOrder solveILP (Ranking& ranking) {
 		for (int i = 0; i < size; i++) {
 			x[i] = IloBoolVarArray(env, size);
 		}
+
+		// Add callback
+		GenericCallback cb(x, matrix);
+		cplex.use(&cb, IloCplex::Callback::Context::Id::Relaxation);
 
 		// Initialize objective function
 		IloExpr obj(env);
