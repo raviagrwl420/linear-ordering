@@ -5,12 +5,13 @@
 #include<ranking.h>
 #include<local_search.h>
 #include<generic_callback.h>
+#include<heuristic_callback.h>
 
 #include<ilcplex/ilocplex.h>
 
 float** solveLP (Ranking&);
 LinearOrder solveILP (Ranking&);
-LinearOrder solvePartition (Ranking&);
+LinearOrder solvePartition (Ranking&, int** partialSolution);
 LinearOrder solvePartition (int size, float** fractionals, Ranking& ranking);
 
 #endif

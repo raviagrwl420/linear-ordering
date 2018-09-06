@@ -94,7 +94,7 @@ LinearOrder solveILP (Ranking& ranking) {
 		}
 
 		// Add callback
-		GenericCallback cb(x, matrix);
+		HeuristicCallback cb(x, matrix);
 		cplex.use(&cb, IloCplex::Callback::Context::Id::Relaxation);
 
 		// Initialize objective function
@@ -184,22 +184,22 @@ int** extractSubMatrix (int** matrix, int size, int* nodes) {
 	return newMatrix;
 }
 
-LinearOrder solveRecursive(int size, int** partitionMatrix) {
+LinearOrder solveRecursive(int size, int** partitionMatrix, int** partialSolution) {
 	Ranking ranking(size, partitionMatrix);
 
-	cout << endl << "**********Size**********" << endl << size << endl << endl;
+	// cout << endl << "**********Size**********" << endl << size << endl << endl;
 
 	LinearOrder solved;
 	if (size < 35) {
 		solved = solveILP(ranking);
 	} else {
-		solved = solvePartition(ranking);
+		solved = solvePartition(ranking, partialSolution);
 	}
 
 	return solved;
 }
 
-LinearOrder solvePartition (Ranking& ranking) {
+LinearOrder solvePartition (Ranking& ranking, int** partialSolution) {
 	int size = ranking.getSize();
 	int** matrix = ranking.getMatrix();
 
@@ -225,6 +225,15 @@ LinearOrder solvePartition (Ranking& ranking) {
 			}
 		}
 		model.add(IloMaximize(env, obj));
+
+		// Add partial solution constraints
+		for (int i = 0; i < size; i++) {
+			for (int j = 0; j < size; j++) {
+				if (partialSolution[i][j] == 1) {
+					model.add(x[i] - x[j] >= 0);
+				}
+			}
+		}
 
 		// Solve
 		cplex.solve();
@@ -258,10 +267,12 @@ LinearOrder solvePartition (Ranking& ranking) {
 		}
 
 		int** partition1Matrix = extractSubMatrix(matrix, size1, partition1);
+		int** partialSolution1Matrix = extractSubMatrix(partialSolution, size1, partition1);
 		int** partition2Matrix = extractSubMatrix(matrix, size2, partition2);
+		int** partialSolution2Matrix = extractSubMatrix(partialSolution, size2, partition2);
 
-		LinearOrder order1 = solveRecursive(size1, partition1Matrix);
-		LinearOrder order2 = solveRecursive(size2, partition2Matrix);
+		LinearOrder order1 = solveRecursive(size1, partition1Matrix, partialSolution1Matrix);
+		LinearOrder order2 = solveRecursive(size2, partition2Matrix, partialSolution2Matrix);
 
 		vector<int> order1Vec = order1.getOrder();
 		vector<int> order2Vec = order2.getOrder();
