@@ -18,7 +18,7 @@ int main(int argc, char** argv) {
 	// float** fractionals = solveLP(ranking);
 
 	// LinearOrder best = solvePartition(ranking.getSize(), fractionals, ranking);
-	LinearOrder best = solveILP(ranking);
+	LinearOrder best = solveILP(ranking, false);
 
 
 	// GeneticSolver solver(ranking);

@@ -64,7 +64,7 @@ float** solveLP (Ranking& ranking) {
 			}
 		}
 
-		cout << "Objective Value: " << cplex.getObjValue() << endl;
+		// cout << "Objective Value: " << cplex.getObjValue() << endl;
 
 		return fractionals;
 	} catch (IloException& e) {
@@ -74,7 +74,7 @@ float** solveLP (Ranking& ranking) {
 	return NULL;
 }
 
-LinearOrder solveILP (Ranking& ranking) {
+LinearOrder solveILP (Ranking& ranking, bool disableOutput) {
 	// IloCplex::setParam(IloCplex::Param::MIP::Tolerances::Integrality, 0);
 	int size = ranking.getSize();
 	int** matrix = ranking.getMatrix();
@@ -85,12 +85,26 @@ LinearOrder solveILP (Ranking& ranking) {
 		IloModel model(env);
 		IloCplex cplex(model);
 
+		if (disableOutput) {
+			cplex.setOut(env.getNullStream());
+		}
+
 		cplex.setParam(IloCplex::Param::MIP::Tolerances::Integrality, 0);
+		cplex.setParam(IloCplex::Param::MIP::Strategy::Search, 1);
+		// cplex.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, 5);
 
 		// Initialize variable array
 		IloArray<IloBoolVarArray> x(env, size);
 		for (int i = 0; i < size; i++) {
 			x[i] = IloBoolVarArray(env, size);
+		}
+
+		// Flatten x
+		IloNumVarArray flattenedX(env, size * size);
+		for (int i = 0; i < size; i++) {
+			for (int j = 0; j < size; j++) {
+				flattenedX[i * size + j] = x[i][j];
+			}
 		}
 
 		// Add callback
@@ -130,10 +144,29 @@ LinearOrder solveILP (Ranking& ranking) {
 			}
 		}
 
+		// Add MIP Start
+		if (size > 35) {
+			IloNumArray startSolution(env, size * size);
+			LinearOrder startOrder = solvePartition(ranking, NULL);
+			vector<int> startOrderVec = startOrder.getOrder();
+
+			cout << "Start Weight: " << ranking.getWeight(startOrderVec);
+
+			for (int i = 0; i < size; i++) {
+				for (int j = i + 1; j < size; j++) {
+					startSolution[startOrderVec[i] * size + startOrderVec[j]] = 1;
+				}
+			}
+
+			cplex.addMIPStart(flattenedX, startSolution);
+			flattenedX.end();
+			startSolution.end();	
+		}
+
 		// Solve
 		cplex.solve();
 
-		cout << "Objective Value: " << cplex.getObjValue() << endl;
+		// cout << "Objective Value: " << cplex.getObjValue() << endl;
 
 		// Decode the solution
 		// Add the values for each row
@@ -149,7 +182,7 @@ LinearOrder solveILP (Ranking& ranking) {
 		// Insert the node in its proper position in the order
 		int* orderArray = new int[size];
 		for (int i = 0; i < size; i++) {
-			cout << "Totals: " << totals[i] << endl;
+			// cout << "Totals: " << totals[i] << endl;
 			int index = (size - 1) - totals[i];
 			orderArray[index] = i;
 		}
@@ -159,7 +192,7 @@ LinearOrder solveILP (Ranking& ranking) {
 			orderVec.push_back(orderArray[i]);
 		}
 
-		cout << "ILP Valid: " << LinearOrder(orderVec).validate() << endl;
+		// cout << "ILP Valid: " << LinearOrder(orderVec).validate() << endl;
 
 		return LinearOrder(orderVec);
 	} catch (IloException& e) {
@@ -191,7 +224,7 @@ LinearOrder solveRecursive(int size, int** partitionMatrix, int** partialSolutio
 
 	LinearOrder solved;
 	if (size < 35) {
-		solved = solveILP(ranking);
+		solved = solveILP(ranking, true);
 	} else {
 		solved = solvePartition(ranking, partialSolution);
 	}
@@ -215,22 +248,41 @@ LinearOrder solvePartition (Ranking& ranking, int** partialSolution) {
 		// Add the variable to model to force its extraction
 		model.add(x);
 
+		// Initialize variable array
+		IloArray<IloBoolVarArray> y(env, size);
+		for (int i = 0; i < size; i++) {
+			y[i] = IloBoolVarArray(env, size);
+		}
+
 		// Initialize objective function
 		IloExpr obj(env);
 		for (int i = 0; i < size; i++) {
 			for (int j = 0; j < size; j++) {
 				if (i != j) {
-					obj += (matrix[i][j] * (x[i] - x[j]));
+					// obj += (matrix[i][j] * (x[i] - x[j]));
+					obj += (matrix[i][j] * y[i][j]);
 				}
 			}
 		}
 		model.add(IloMaximize(env, obj));
 
-		// Add partial solution constraints
+		// Add constraints
 		for (int i = 0; i < size; i++) {
 			for (int j = 0; j < size; j++) {
-				if (partialSolution[i][j] == 1) {
-					model.add(x[i] - x[j] >= 0);
+				if (i != j) {
+					model.add(y[i][j] <= x[i]);
+					model.add(y[i][j] <= 1 - x[j]);	
+				}
+			}
+		}
+
+		// Add partial solution constraints
+		if (partialSolution != NULL) {
+			for (int i = 0; i < size; i++) {
+				for (int j = 0; j < size; j++) {
+					if (partialSolution[i][j] == 1) {
+						model.add(x[i] - x[j] >= 0);
+					}
 				}
 			}
 		}
@@ -238,7 +290,7 @@ LinearOrder solvePartition (Ranking& ranking, int** partialSolution) {
 		// Solve
 		cplex.solve();
 
-		cout << "Objective Value: " << cplex.getObjValue() << endl;
+		// cout << "Objective Value: " << cplex.getObjValue() << endl;
 
 		// Decode solution
 		// Count number of nodes in partition
@@ -266,10 +318,12 @@ LinearOrder solvePartition (Ranking& ranking, int** partialSolution) {
 			}
 		}
 
+		cout << "Count: " << count << " Size: " << size << endl;
+
 		int** partition1Matrix = extractSubMatrix(matrix, size1, partition1);
-		int** partialSolution1Matrix = extractSubMatrix(partialSolution, size1, partition1);
+		int** partialSolution1Matrix = partialSolution != NULL ? extractSubMatrix(partialSolution, size1, partition1) : NULL;
 		int** partition2Matrix = extractSubMatrix(matrix, size2, partition2);
-		int** partialSolution2Matrix = extractSubMatrix(partialSolution, size2, partition2);
+		int** partialSolution2Matrix = partialSolution != NULL ? extractSubMatrix(partialSolution, size2, partition2) : NULL;
 
 		LinearOrder order1 = solveRecursive(size1, partition1Matrix, partialSolution1Matrix);
 		LinearOrder order2 = solveRecursive(size2, partition2Matrix, partialSolution2Matrix);
@@ -285,15 +339,15 @@ LinearOrder solvePartition (Ranking& ranking, int** partialSolution) {
 			finalOrder.push_back(partition2[order2Vec[i]]);
 		}
 
-		LinearOrder bestOrder(finalOrder);
+		// LinearOrder bestOrder(finalOrder);
 
-		cout << "Original Weight: " << ranking.getWeight(bestOrder.getOrder()) << endl;
+		// cout << "Original Weight: " << ranking.getWeight(bestOrder.getOrder()) << endl;
 
-		LinearOrder improvedOrder = localSearchExpensive(size, matrix, bestOrder);
+		// LinearOrder improvedOrder = localSearchExpensive(size, matrix, bestOrder);
 
-		cout << "Improved Weight: " << ranking.getWeight(improvedOrder.getOrder()) << endl; 
+		// cout << "Improved Weight: " << ranking.getWeight(improvedOrder.getOrder()) << endl; 
 
-		return improvedOrder;
+		// return improvedOrder;
 
 		return LinearOrder(finalOrder);
 	} catch (IloException& e) {
@@ -354,7 +408,7 @@ LinearOrder solveILP (int size, float** matrix) {
 		// Solve
 		cplex.solve();
 
-		cout << "Objective Value: " << cplex.getObjValue() << endl;
+		// cout << "Objective Value: " << cplex.getObjValue() << endl;
 
 		// Decode the solution
 		// Add the values for each row
@@ -370,7 +424,7 @@ LinearOrder solveILP (int size, float** matrix) {
 		// Insert the node in its proper position in the order
 		int* orderArray = new int[size];
 		for (int i = 0; i < size; i++) {
-			cout << "Totals: " << totals[i] << endl;
+			// cout << "Totals: " << totals[i] << endl;
 			int index = (size - 1) - totals[i];
 			orderArray[index] = i;
 		}
@@ -380,7 +434,7 @@ LinearOrder solveILP (int size, float** matrix) {
 			orderVec.push_back(orderArray[i]);
 		}
 
-		cout << "ILP Valid: " << LinearOrder(orderVec).validate() << endl;
+		// cout << "ILP Valid: " << LinearOrder(orderVec).validate() << endl;
 
 		return LinearOrder(orderVec);
 	} catch (IloException& e) {
@@ -410,7 +464,7 @@ LinearOrder solveRecursive(int size, float** partitionMatrix, int** intMatrix) {
 
 	LinearOrder solved;
 	if (size < 40) {
-		solved = solveILP(newRanking);
+		solved = solveILP(newRanking, true);
 	} else {
 		solved = solvePartition(size, partitionMatrix, newRanking);
 	}
@@ -445,7 +499,7 @@ LinearOrder solvePartition (int size, float** matrix, Ranking& ranking) {
 		// Solve
 		cplex.solve();
 
-		cout << "Objective Value: " << cplex.getObjValue() << endl;
+		// cout << "Objective Value: " << cplex.getObjValue() << endl;
 
 		// Decode solution
 		// Count number of nodes in partition
@@ -496,11 +550,11 @@ LinearOrder solvePartition (int size, float** matrix, Ranking& ranking) {
 
 		LinearOrder bestOrder(finalOrder);
 
-		cout << "Original Weight: " << ranking.getWeight(bestOrder.getOrder()) << endl;
+		// cout << "Original Weight: " << ranking.getWeight(bestOrder.getOrder()) << endl;
 
 		LinearOrder improvedOrder = localSearchExpensive(size, intMatrix, bestOrder);
 
-		cout << "Improved Weight: " << ranking.getWeight(improvedOrder.getOrder()) << endl; 
+		// cout << "Improved Weight: " << ranking.getWeight(improvedOrder.getOrder()) << endl; 
 
 		return improvedOrder;
 

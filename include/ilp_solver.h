@@ -10,7 +10,7 @@
 #include<ilcplex/ilocplex.h>
 
 float** solveLP (Ranking&);
-LinearOrder solveILP (Ranking&);
+LinearOrder solveILP (Ranking&, bool disableOutput);
 LinearOrder solvePartition (Ranking&, int** partialSolution);
 LinearOrder solvePartition (int size, float** fractionals, Ranking& ranking);
 
