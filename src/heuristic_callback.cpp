@@ -1,6 +1,6 @@
 #include<heuristic_callback.h>
 
-#define EPS 1e-6
+#define EPS 1e-4
 
 void HeuristicCallback::postHeuristicSolution (const IloCplex::Callback::Context& context) {
 	// Initialize a new variable to store the relaxation solution
@@ -79,8 +79,8 @@ void HeuristicCallback::postHeuristicSolution (const IloCplex::Callback::Context
 }
 
 void HeuristicCallback::invoke (const IloCplex::Callback::Context& context) {
-	if (context.inRelaxation()) {
+	// if (context.inRelaxation()) {
 		// Post Heuristic Solution
 		postHeuristicSolution(context);
-	}
+	// }
 }

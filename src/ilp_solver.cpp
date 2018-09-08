@@ -1,5 +1,7 @@
 #include<ilp_solver.h>
 
+#define EPS 1e-8
+
 float** solveLP (Ranking& ranking) {
 	int size = ranking.getSize();
 	int** matrix = ranking.getMatrix();
@@ -89,8 +91,9 @@ LinearOrder solveILP (Ranking& ranking, bool disableOutput) {
 			cplex.setOut(env.getNullStream());
 		}
 
-		cplex.setParam(IloCplex::Param::MIP::Tolerances::Integrality, 0);
-		cplex.setParam(IloCplex::Param::MIP::Strategy::Search, 1);
+		cplex.setParam(IloCplex::Param::MIP::Tolerances::Integrality, EPS);
+		cplex.setParam(IloCplex::Param::Simplex::Tolerances::Feasibility, EPS);
+		// cplex.setParam(IloCplex::Param::MIP::Strategy::Search, 1);
 		// cplex.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, 5);
 
 		// Initialize variable array
@@ -134,39 +137,42 @@ LinearOrder solveILP (Ranking& ranking, bool disableOutput) {
 		}
 
 		// Add cycle constraints
+		IloConstraintArray dicycleConstraints(env);
 		for (int i = 0; i < size; i++) {
 			for (int j = 0; j < size; j++) {
 				for (int k = 0; k < size; k++) {
 					if ((i != j) && (j != k) && (k != i)) {
-						model.add(x[i][j] + x[j][k] + x[k][i] <= 2);
+						dicycleConstraints.add(x[i][j] + x[j][k] + x[k][i] <= 2);
+						// model.add(x[i][j] + x[j][k] + x[k][i] <= 2);
 					}
 				}
 			}
 		}
+		cplex.addLazyConstraints(dicycleConstraints);
 
 		// Add MIP Start
 		if (size > 35) {
-			IloNumArray startSolution(env, size * size);
-			LinearOrder startOrder = solvePartition(ranking, NULL);
-			vector<int> startOrderVec = startOrder.getOrder();
+			// IloNumArray startSolution(env, size * size);
+			// LinearOrder startOrder = solvePartition(ranking, NULL);
+			// vector<int> startOrderVec = startOrder.getOrder();
 
-			cout << "Start Weight: " << ranking.getWeight(startOrderVec);
+			// cout << "Start Weight: " << ranking.getWeight(startOrderVec) << endl;
 
-			for (int i = 0; i < size; i++) {
-				for (int j = i + 1; j < size; j++) {
-					startSolution[startOrderVec[i] * size + startOrderVec[j]] = 1;
-				}
-			}
+			// for (int i = 0; i < size; i++) {
+			// 	for (int j = i + 1; j < size; j++) {
+			// 		startSolution[startOrderVec[i] * size + startOrderVec[j]] = 1;
+			// 	}
+			// }
 
-			cplex.addMIPStart(flattenedX, startSolution);
-			flattenedX.end();
-			startSolution.end();	
+			// cplex.addMIPStart(flattenedX, startSolution);
+			// flattenedX.end();
+			// startSolution.end();
 		}
 
 		// Solve
 		cplex.solve();
 
-		// cout << "Objective Value: " << cplex.getObjValue() << endl;
+		cout << "Objective Value: " << cplex.getObjValue() << endl;
 
 		// Decode the solution
 		// Add the values for each row
@@ -174,7 +180,8 @@ LinearOrder solveILP (Ranking& ranking, bool disableOutput) {
 		for (int i = 0; i < size; i++) {
 			int total = 0;
 			for (int j = 0; j < size; j++) {
-				total += cplex.getValue(x[i][j]);
+				double value = cplex.getValue(x[i][j]);
+				total += (int) round(value);
 			}
 			totals[i] = total;
 		}
@@ -192,11 +199,11 @@ LinearOrder solveILP (Ranking& ranking, bool disableOutput) {
 			orderVec.push_back(orderArray[i]);
 		}
 
-		// cout << "ILP Valid: " << LinearOrder(orderVec).validate() << endl;
+		cout << "ILP Valid: " << LinearOrder(orderVec).validate() << endl;
 
 		return LinearOrder(orderVec);
 	} catch (IloException& e) {
-		cout << "Exception: " << e << endl;
+		cout << "ExceptionILP: " << e << endl;
 	}
 
 	return NULL;
@@ -223,7 +230,11 @@ LinearOrder solveRecursive(int size, int** partitionMatrix, int** partialSolutio
 	// cout << endl << "**********Size**********" << endl << size << endl << endl;
 
 	LinearOrder solved;
-	if (size < 35) {
+	if (size == 1) {
+		vector<int> orderVec;
+		orderVec.push_back(0);
+		solved = LinearOrder(orderVec);
+	} else if (size < 35) {
 		solved = solveILP(ranking, true);
 	} else {
 		solved = solvePartition(ranking, partialSolution);
@@ -249,55 +260,59 @@ LinearOrder solvePartition (Ranking& ranking, int** partialSolution) {
 		model.add(x);
 
 		// Initialize variable array
-		IloArray<IloBoolVarArray> y(env, size);
-		for (int i = 0; i < size; i++) {
-			y[i] = IloBoolVarArray(env, size);
-		}
+		// IloArray<IloBoolVarArray> y(env, size);
+		// for (int i = 0; i < size; i++) {
+		// 	y[i] = IloBoolVarArray(env, size);
+		// }
 
 		// Initialize objective function
 		IloExpr obj(env);
 		for (int i = 0; i < size; i++) {
 			for (int j = 0; j < size; j++) {
 				if (i != j) {
-					// obj += (matrix[i][j] * (x[i] - x[j]));
-					obj += (matrix[i][j] * y[i][j]);
+					obj += (matrix[i][j] * (x[i] - x[j]));
+					// obj += (matrix[i][j] * y[i][j]);
 				}
 			}
 		}
 		model.add(IloMaximize(env, obj));
 
 		// Add constraints
-		for (int i = 0; i < size; i++) {
-			for (int j = 0; j < size; j++) {
-				if (i != j) {
-					model.add(y[i][j] <= x[i]);
-					model.add(y[i][j] <= 1 - x[j]);	
-				}
-			}
-		}
+		// for (int i = 0; i < size; i++) {
+		// 	for (int j = 0; j < size; j++) {
+		// 		if (i != j) {
+		// 			model.add(y[i][j] <= x[i]);
+		// 			model.add(y[i][j] <= 1 - x[j]);	
+		// 		}
+		// 	}
+		// }
 
 		// Add partial solution constraints
+		int countPartialSol = 0;
 		if (partialSolution != NULL) {
 			for (int i = 0; i < size; i++) {
 				for (int j = 0; j < size; j++) {
 					if (partialSolution[i][j] == 1) {
 						model.add(x[i] - x[j] >= 0);
+						countPartialSol++;
 					}
 				}
 			}
 		}
+		cout << endl << "Count of Partial Solns: " << countPartialSol << endl << endl;
 
 		// Solve
 		cplex.solve();
 
-		// cout << "Objective Value: " << cplex.getObjValue() << endl;
+		cout << "Objective Value: " << cplex.getObjValue() << endl;
 
 		// Decode solution
 		// Count number of nodes in partition
 		int count = 0;
 		int* values = new int[size];
 		for (int i = 0; i < size; i++) {
-			values[i] = cplex.getValue(x[i]);
+			double value = cplex.getValue(x[i]);
+			values[i] = (int) round(value);
 			count +=  values[i];
 		}
 
@@ -339,19 +354,22 @@ LinearOrder solvePartition (Ranking& ranking, int** partialSolution) {
 			finalOrder.push_back(partition2[order2Vec[i]]);
 		}
 
-		// LinearOrder bestOrder(finalOrder);
+		LinearOrder bestOrder(finalOrder);
 
 		// cout << "Original Weight: " << ranking.getWeight(bestOrder.getOrder()) << endl;
 
-		// LinearOrder improvedOrder = localSearchExpensive(size, matrix, bestOrder);
+		LinearOrder improvedOrder = localSearchExpensive(size, matrix, bestOrder);
 
 		// cout << "Improved Weight: " << ranking.getWeight(improvedOrder.getOrder()) << endl; 
 
-		// return improvedOrder;
+		cout << "Partition Valid: " << improvedOrder.validate() << endl;
+
+		return improvedOrder;
 
 		return LinearOrder(finalOrder);
 	} catch (IloException& e) {
-		cout << "Exception: " << e << endl;
+		cout << "Exceptions: " << e << endl;
+		cout << "Message: " << e.getMessage() << endl;
 	}
 
 	return NULL;
@@ -506,7 +524,8 @@ LinearOrder solvePartition (int size, float** matrix, Ranking& ranking) {
 		int count = 0;
 		int* values = new int[size];
 		for (int i = 0; i < size; i++) {
-			values[i] = cplex.getValue(x[i]);
+			double value = cplex.getValue(x[i]);
+			values[i] = (int) round(value);
 			count +=  values[i];
 		}
 

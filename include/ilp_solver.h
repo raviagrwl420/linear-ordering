@@ -8,6 +8,7 @@
 #include<heuristic_callback.h>
 
 #include<ilcplex/ilocplex.h>
+#include<math.h>
 
 float** solveLP (Ranking&);
 LinearOrder solveILP (Ranking&, bool disableOutput);
