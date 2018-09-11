@@ -1,7 +1,7 @@
 #include<graph.h>
 
 int strongly_connected_components (Ranking& ranking) {
-	ranking.initiateMatrixFromFile();
+	// ranking.initiateMatrixFromFile();
 
 	int size = ranking.getSize();
 	int **matrix = ranking.getMatrix();

@@ -1,4 +1,5 @@
 #include<heuristic_callback.h>
+#include<graph.h>
 
 #define EPS 1e-4
 
@@ -46,11 +47,21 @@ void HeuristicCallback::postHeuristicSolution (const IloCplex::Callback::Context
 
 		for (int i = 0; i < size; i++) {
 			for (int j = 0; j < size; j++) {
-				if ( 1 - EPS <= vars[i][j] && vars[i][j] <= 1 + EPS) {
+				if ( 1 - EPS <= vars[i][j]) {
 					partialSolution[i][j] = 1;
 				}
 			}
 		}
+		// Temp
+		Ranking partialRanking(size, partialSolution);
+		int numComponents = strongly_connected_components(partialRanking);
+		if (numComponents < size) {
+			cout << "numComponents: " << numComponents << " Objective Value: " << relaxationObjective << endl;
+			cout << "Returned!!" << endl;
+			return;
+		}
+		
+		// \Temp
 
 		Ranking ranking(size, matrix);
 		LinearOrder order = solvePartition(ranking, partialSolution);
@@ -58,6 +69,7 @@ void HeuristicCallback::postHeuristicSolution (const IloCplex::Callback::Context
 
 		double newObjective = ranking.getWeight(orderVec);
 
+		cout << endl << endl << "Valid Solution: " << LinearOrder(orderVec).validate() << endl << endl << endl;
 		cout << endl << endl << "Feasible Objective: " << newObjective << endl << endl << endl;
 
 		for (int i = 0; i < size; i++) {

@@ -93,7 +93,7 @@ LinearOrder solveILP (Ranking& ranking, bool disableOutput) {
 
 		cplex.setParam(IloCplex::Param::MIP::Tolerances::Integrality, EPS);
 		cplex.setParam(IloCplex::Param::Simplex::Tolerances::Feasibility, EPS);
-		// cplex.setParam(IloCplex::Param::MIP::Strategy::Search, 1);
+		cplex.setParam(IloCplex::Param::MIP::Strategy::Search, 1);
 		// cplex.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, 5);
 
 		// Initialize variable array
@@ -138,35 +138,38 @@ LinearOrder solveILP (Ranking& ranking, bool disableOutput) {
 
 		// Add cycle constraints
 		IloConstraintArray dicycleConstraints(env);
+		IloConstraintArray dicycleConstraints2(env);
 		for (int i = 0; i < size; i++) {
 			for (int j = 0; j < size; j++) {
 				for (int k = 0; k < size; k++) {
 					if ((i != j) && (j != k) && (k != i)) {
 						dicycleConstraints.add(x[i][j] + x[j][k] + x[k][i] <= 2);
+						dicycleConstraints2.add(x[i][j] + x[j][k] + x[k][i] <= 2);
 						// model.add(x[i][j] + x[j][k] + x[k][i] <= 2);
 					}
 				}
 			}
 		}
-		cplex.addLazyConstraints(dicycleConstraints);
+		// cplex.addLazyConstraints(dicycleConstraints);
+		cplex.addUserCuts(dicycleConstraints2);
 
 		// Add MIP Start
 		if (size > 35) {
-			// IloNumArray startSolution(env, size * size);
-			// LinearOrder startOrder = solvePartition(ranking, NULL);
-			// vector<int> startOrderVec = startOrder.getOrder();
+			IloNumArray startSolution(env, size * size);
+			LinearOrder startOrder = solvePartition(ranking, NULL);
+			vector<int> startOrderVec = startOrder.getOrder();
 
-			// cout << "Start Weight: " << ranking.getWeight(startOrderVec) << endl;
+			cout << "Start Weight: " << ranking.getWeight(startOrderVec) << endl;
 
-			// for (int i = 0; i < size; i++) {
-			// 	for (int j = i + 1; j < size; j++) {
-			// 		startSolution[startOrderVec[i] * size + startOrderVec[j]] = 1;
-			// 	}
-			// }
+			for (int i = 0; i < size; i++) {
+				for (int j = i + 1; j < size; j++) {
+					startSolution[startOrderVec[i] * size + startOrderVec[j]] = 1;
+				}
+			}
 
-			// cplex.addMIPStart(flattenedX, startSolution);
-			// flattenedX.end();
-			// startSolution.end();
+			cplex.addMIPStart(flattenedX, startSolution);
+			flattenedX.end();
+			startSolution.end();
 		}
 
 		// Solve
