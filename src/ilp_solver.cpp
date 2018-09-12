@@ -1,4 +1,5 @@
 #include<ilp_solver.h>
+#include<legacy_callback.h>
 
 #define EPS 1e-8
 
@@ -111,19 +112,20 @@ LinearOrder solveILP (Ranking& ranking, bool disableOutput) {
 		}
 
 		// Add callback
-		HeuristicCallback cb(x, matrix);
-		cplex.use(&cb, IloCplex::Callback::Context::Id::Relaxation);
+		// HeuristicCallback cb(x, matrix);
+		// cplex.use(&cb, IloCplex::Callback::Context::Id::Relaxation);
 
 		// Initialize objective function
-		IloExpr obj(env);
+		IloExpr objFunc(env);
 		for (int i = 0; i < size; i++) {
 			for (int j = 0; j < size; j++) {
 				if (i != j) {
-					obj += (matrix[i][j] * x[i][j]);
+					objFunc += (matrix[i][j] * x[i][j]);
 				}
 			}
 		}
-		model.add(IloMaximize(env, obj));
+		IloObjective obj = IloMaximize(env, objFunc);
+		model.add(obj);
 
 		// Add simple constraints
 		for (int i = 0; i < size; i++) {
@@ -136,22 +138,26 @@ LinearOrder solveILP (Ranking& ranking, bool disableOutput) {
 			}
 		}
 
-		// Add cycle constraints
-		IloConstraintArray dicycleConstraints(env);
-		IloConstraintArray dicycleConstraints2(env);
-		for (int i = 0; i < size; i++) {
-			for (int j = 0; j < size; j++) {
-				for (int k = 0; k < size; k++) {
-					if ((i != j) && (j != k) && (k != i)) {
-						dicycleConstraints.add(x[i][j] + x[j][k] + x[k][i] <= 2);
-						dicycleConstraints2.add(x[i][j] + x[j][k] + x[k][i] <= 2);
-						// model.add(x[i][j] + x[j][k] + x[k][i] <= 2);
-					}
-				}
-			}
-		}
-		// cplex.addLazyConstraints(dicycleConstraints);
-		cplex.addUserCuts(dicycleConstraints2);
+		cplex.use(LegacyLazyConstraintCallback(env, cplex, x, obj, ranking));
+		// cplex.use(LegacyUserCutCallback(env, cplex, x, obj, ranking));
+		// cplex.use(LegacyHeuristicCallback(env, cplex, x, obj, ranking));
+
+		// // Add cycle constraints
+		// IloConstraintArray dicycleConstraints(env);
+		// IloConstraintArray dicycleConstraints2(env);
+		// for (int i = 0; i < size; i++) {
+		// 	for (int j = 0; j < size; j++) {
+		// 		for (int k = 0; k < size; k++) {
+		// 			if ((i != j) && (j != k) && (k != i)) {
+		// 				dicycleConstraints.add(x[i][j] + x[j][k] + x[k][i] <= 2);
+		// 				dicycleConstraints2.add(x[i][j] + x[j][k] + x[k][i] <= 2);
+		// 				// model.add(x[i][j] + x[j][k] + x[k][i] <= 2);
+		// 			}
+		// 		}
+		// 	}
+		// }
+		// // cplex.addLazyConstraints(dicycleConstraints);
+		// cplex.addUserCuts(dicycleConstraints2);
 
 		// Add MIP Start
 		if (size > 35) {
@@ -206,7 +212,7 @@ LinearOrder solveILP (Ranking& ranking, bool disableOutput) {
 
 		return LinearOrder(orderVec);
 	} catch (IloException& e) {
-		cout << "ExceptionILP: " << e << endl;
+		cout << "ExceptionILP: " << e.getMessage() << endl;
 	}
 
 	return NULL;
@@ -263,32 +269,32 @@ LinearOrder solvePartition (Ranking& ranking, int** partialSolution) {
 		model.add(x);
 
 		// Initialize variable array
-		// IloArray<IloBoolVarArray> y(env, size);
-		// for (int i = 0; i < size; i++) {
-		// 	y[i] = IloBoolVarArray(env, size);
-		// }
+		IloArray<IloBoolVarArray> y(env, size);
+		for (int i = 0; i < size; i++) {
+			y[i] = IloBoolVarArray(env, size);
+		}
 
 		// Initialize objective function
 		IloExpr obj(env);
 		for (int i = 0; i < size; i++) {
 			for (int j = 0; j < size; j++) {
 				if (i != j) {
-					obj += (matrix[i][j] * (x[i] - x[j]));
-					// obj += (matrix[i][j] * y[i][j]);
+					// obj += (matrix[i][j] * (x[i] - x[j]));
+					obj += (matrix[i][j] * y[i][j]);
 				}
 			}
 		}
 		model.add(IloMaximize(env, obj));
 
 		// Add constraints
-		// for (int i = 0; i < size; i++) {
-		// 	for (int j = 0; j < size; j++) {
-		// 		if (i != j) {
-		// 			model.add(y[i][j] <= x[i]);
-		// 			model.add(y[i][j] <= 1 - x[j]);	
-		// 		}
-		// 	}
-		// }
+		for (int i = 0; i < size; i++) {
+			for (int j = 0; j < size; j++) {
+				if (i != j) {
+					model.add(y[i][j] <= x[i]);
+					model.add(y[i][j] <= 1 - x[j]);	
+				}
+			}
+		}
 
 		// Add partial solution constraints
 		int countPartialSol = 0;
