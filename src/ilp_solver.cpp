@@ -139,8 +139,8 @@ LinearOrder solveILP (Ranking& ranking, bool disableOutput) {
 		}
 
 		cplex.use(LegacyLazyConstraintCallback(env, cplex, x, obj, ranking));
-		// cplex.use(LegacyUserCutCallback(env, cplex, x, obj, ranking));
-		// cplex.use(LegacyHeuristicCallback(env, cplex, x, obj, ranking));
+		cplex.use(LegacyUserCutCallback(env, cplex, x, obj, ranking));
+		cplex.use(LegacyHeuristicCallback(env, cplex, x, obj, ranking));
 
 		// // Add cycle constraints
 		// IloConstraintArray dicycleConstraints(env);
@@ -161,21 +161,21 @@ LinearOrder solveILP (Ranking& ranking, bool disableOutput) {
 
 		// Add MIP Start
 		if (size > 35) {
-			IloNumArray startSolution(env, size * size);
-			LinearOrder startOrder = solvePartition(ranking, NULL);
-			vector<int> startOrderVec = startOrder.getOrder();
+			// IloNumArray startSolution(env, size * size);
+			// LinearOrder startOrder = solvePartition(ranking, NULL);
+			// vector<int> startOrderVec = startOrder.getOrder();
 
-			cout << "Start Weight: " << ranking.getWeight(startOrderVec) << endl;
+			// cout << "Start Weight: " << ranking.getWeight(startOrderVec) << endl;
 
-			for (int i = 0; i < size; i++) {
-				for (int j = i + 1; j < size; j++) {
-					startSolution[startOrderVec[i] * size + startOrderVec[j]] = 1;
-				}
-			}
+			// for (int i = 0; i < size; i++) {
+			// 	for (int j = i + 1; j < size; j++) {
+			// 		startSolution[startOrderVec[i] * size + startOrderVec[j]] = 1;
+			// 	}
+			// }
 
-			cplex.addMIPStart(flattenedX, startSolution);
-			flattenedX.end();
-			startSolution.end();
+			// cplex.addMIPStart(flattenedX, startSolution);
+			// flattenedX.end();
+			// startSolution.end();
 		}
 
 		// Solve

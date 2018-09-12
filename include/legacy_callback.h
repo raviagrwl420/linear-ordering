@@ -32,7 +32,7 @@ ILOLAZYCONSTRAINTCALLBACK4(LegacyLazyConstraintCallback, IloCplex, cplex, IloArr
 			for (int j = 0; j < size; j++) {
 				for (int k = 0; k < size; k++) {
 					if ((i != j) && (j != k) && (k != i)) {
-						if (vars[i][j] + vars[j][k] + vars[k][i] > 2) {
+						if (vars[i][j] + vars[j][k] + vars[k][i] > 2 + EPS) {
 							addLocal(x[i][j] + x[j][k] + x[k][i] <= 2).end();	
 						}
 					}
