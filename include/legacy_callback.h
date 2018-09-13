@@ -29,9 +29,9 @@ ILOLAZYCONSTRAINTCALLBACK4(LegacyLazyConstraintCallback, IloCplex, cplex, IloArr
 		}
 
 		for (int i = 0; i < size; i++) {
-			for (int j = 0; j < size; j++) {
-				for (int k = 0; k < size; k++) {
-					if ((i != j) && (j != k) && (k != i)) {
+			for (int j = i + 1; j < size; j++) {
+				for (int k = i + 1; k < size; k++) {
+					if (j != k) {
 						if (vars[i][j] + vars[j][k] + vars[k][i] > 2 + EPS) {
 							addLocal(x[i][j] + x[j][k] + x[k][i] <= 2).end();	
 						}
@@ -76,9 +76,9 @@ ILOUSERCUTCALLBACK4(LegacyUserCutCallback, IloCplex, cplex, IloArray<IloBoolVarA
 		}
 
 		for (int i = 0; i < size; i++) {
-			for (int j = 0; j < size; j++) {
-				for (int k = 0; k < size; k++) {
-					if ((i != j) && (j != k) && (k != i)) {
+			for (int j = i + 1; j < size; j++) {
+				for (int k = i + 1; k < size; k++) {
+					if (j != k) {
 						if (vars[i][j] + vars[j][k] + vars[k][i] > 2 + EPS) {
 							addLocal(x[i][j] + x[j][k] + x[k][i] <= 2).end();	
 						}

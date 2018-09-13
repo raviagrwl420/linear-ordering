@@ -13,6 +13,7 @@
 float** solveLP (Ranking&);
 LinearOrder solveILP (Ranking&, bool disableOutput);
 LinearOrder solvePartition (Ranking&, int** partialSolution);
+LinearOrder solveTriPartition (Ranking& ranking, int** partialSolution);
 LinearOrder solvePartition (int size, float** fractionals, Ranking& ranking);
 
 #endif

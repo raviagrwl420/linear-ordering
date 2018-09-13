@@ -95,6 +95,8 @@ LinearOrder solveILP (Ranking& ranking, bool disableOutput) {
 		cplex.setParam(IloCplex::Param::MIP::Tolerances::Integrality, EPS);
 		cplex.setParam(IloCplex::Param::Simplex::Tolerances::Feasibility, EPS);
 		cplex.setParam(IloCplex::Param::MIP::Strategy::Search, 1);
+		// cplex.setParam(IloCplex::Param::Parallel, 1);
+		// cplex.setParam(IloCplex::Param::Threads, 8);
 		// cplex.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, 5);
 
 		// Initialize variable array
@@ -269,32 +271,32 @@ LinearOrder solvePartition (Ranking& ranking, int** partialSolution) {
 		model.add(x);
 
 		// Initialize variable array
-		IloArray<IloBoolVarArray> y(env, size);
-		for (int i = 0; i < size; i++) {
-			y[i] = IloBoolVarArray(env, size);
-		}
+		// IloArray<IloBoolVarArray> y(env, size);
+		// for (int i = 0; i < size; i++) {
+		// 	y[i] = IloBoolVarArray(env, size);
+		// }
 
 		// Initialize objective function
 		IloExpr obj(env);
 		for (int i = 0; i < size; i++) {
 			for (int j = 0; j < size; j++) {
 				if (i != j) {
-					// obj += (matrix[i][j] * (x[i] - x[j]));
-					obj += (matrix[i][j] * y[i][j]);
+					obj += (matrix[i][j] * (x[i] - x[j]));
+					// obj += (matrix[i][j] * y[i][j]);
 				}
 			}
 		}
 		model.add(IloMaximize(env, obj));
 
 		// Add constraints
-		for (int i = 0; i < size; i++) {
-			for (int j = 0; j < size; j++) {
-				if (i != j) {
-					model.add(y[i][j] <= x[i]);
-					model.add(y[i][j] <= 1 - x[j]);	
-				}
-			}
-		}
+		// for (int i = 0; i < size; i++) {
+		// 	for (int j = 0; j < size; j++) {
+		// 		if (i != j) {
+		// 			model.add(y[i][j] <= x[i]);
+		// 			model.add(y[i][j] <= 1 - x[j]);	
+		// 		}
+		// 	}
+		// }
 
 		// Add partial solution constraints
 		int countPartialSol = 0;
@@ -361,6 +363,162 @@ LinearOrder solvePartition (Ranking& ranking, int** partialSolution) {
 		}
 		for (int i = 0; i < size2; i++) {
 			finalOrder.push_back(partition2[order2Vec[i]]);
+		}
+
+		LinearOrder bestOrder(finalOrder);
+
+		// cout << "Original Weight: " << ranking.getWeight(bestOrder.getOrder()) << endl;
+
+		LinearOrder improvedOrder = localSearchExpensive(size, matrix, bestOrder);
+
+		// cout << "Improved Weight: " << ranking.getWeight(improvedOrder.getOrder()) << endl; 
+
+		cout << "Partition Valid: " << improvedOrder.validate() << endl;
+
+		return improvedOrder;
+
+		return LinearOrder(finalOrder);
+	} catch (IloException& e) {
+		cout << "Exceptions: " << e << endl;
+		cout << "Message: " << e.getMessage() << endl;
+	}
+
+	return NULL;
+}
+
+LinearOrder solveTriPartition (Ranking& ranking, int** partialSolution) {
+	int size = ranking.getSize();
+	int** matrix = ranking.getMatrix();
+
+	try {
+		// Initialize environment and model
+		IloEnv env;
+		IloModel model(env);
+		IloCplex cplex(model);
+
+		// Initialize variable array
+		IloBoolVarArray x(env, size);
+		IloBoolVarArray y(env, size);
+
+		// Add the variable to model to force its extraction
+		model.add(x);
+		model.add(y);
+
+		// Initialize variable array
+		IloArray<IloBoolVarArray> a(env, size);
+		IloArray<IloBoolVarArray> b(env, size);
+		IloArray<IloBoolVarArray> z(env, size);
+		for (int i = 0; i < size; i++) {
+			a[i] = IloBoolVarArray(env, size);
+			b[i] = IloBoolVarArray(env, size);
+			z[i] = IloBoolVarArray(env, size);
+		}
+
+		// Initialize objective function
+		IloExpr obj(env);
+		for (int i = 0; i < size; i++) {
+			for (int j = 0; j < size; j++) {
+				if (i != j) {
+					// obj += (matrix[i][j] * (x[i] - x[j]));
+					obj += (matrix[i][j] * z[i][j]);
+				}
+			}
+		}
+		model.add(IloMaximize(env, obj));
+
+		// Add constraints
+		for (int i = 0; i < size; i++) {
+			for (int j = 0; j < size; j++) {
+				if (i != j) {
+					model.add(a[i][j] <= x[i]);
+					model.add(a[i][j] <= 1 - x[j]);
+					model.add(b[i][j] <= y[i]);
+					model.add(b[i][j] <= 1 - y[j]);
+					model.add(z[i][j] <= a[i][j] + b[i][j]);
+					model.add(b[i][j] <= a[i][j]);	
+				}
+			}
+		}
+
+		// Add partial solution constraints
+		// int countPartialSol = 0;
+		// if (partialSolution != NULL) {
+		// 	for (int i = 0; i < size; i++) {
+		// 		for (int j = 0; j < size; j++) {
+		// 			if (partialSolution[i][j] == 1) {
+		// 				model.add(x[i] - x[j] >= 0);
+		// 				countPartialSol++;
+		// 			}
+		// 		}
+		// 	}
+		// }
+		// cout << endl << "Count of Partial Solns: " << countPartialSol << endl << endl;
+
+		// Solve
+		cplex.solve();
+
+		cout << "Objective Value: " << cplex.getObjValue() << endl;
+
+		// Decode solution
+		// Count number of nodes in partition
+		int count[3] = {0};
+		int* values = new int[size];
+		for (int i = 0; i < size; i++) {
+			double valueX = cplex.getValue(x[i]);
+			double valueY = cplex.getValue(y[i]);
+			values[i] = (int) round(valueX + valueY);
+			count[values[i]] += 1;
+		}
+
+		cout << "Counts: " << count[0] << " " << count[1] << " " << count[2] << endl;
+
+		int size1 = count[0];
+		int size2 = count[1];
+		int size3 = count[2];
+		int* partition1 = new int[size1];
+		int* partition2 = new int[size2];
+		int* partition3 = new int[size3];
+
+		int j = 0;
+		int k = 0;
+		int l = 0;
+		for (int i = 0; i < size; i++) {
+			if (values[i] == 2) {
+				partition1[j] = i;
+				j++;
+			} else if (values[i] == 1) {
+				partition2[k] = i;
+				k++;
+			} else {
+				partition3[l] = i;
+				l++;
+			}
+		}
+
+		int** partition1Matrix = extractSubMatrix(matrix, size1, partition1);
+		int** partialSolution1Matrix = partialSolution != NULL ? extractSubMatrix(partialSolution, size1, partition1) : NULL;
+		int** partition2Matrix = extractSubMatrix(matrix, size2, partition2);
+		int** partialSolution2Matrix = partialSolution != NULL ? extractSubMatrix(partialSolution, size2, partition2) : NULL;
+		int** partition3Matrix = extractSubMatrix(matrix, size3, partition3);
+		int** partialSolution3Matrix = partialSolution != NULL ? extractSubMatrix(partialSolution, size3, partition3) : NULL;
+
+		LinearOrder order1 = solveRecursive(size1, partition1Matrix, partialSolution1Matrix);
+		LinearOrder order2 = solveRecursive(size2, partition2Matrix, partialSolution2Matrix);
+		LinearOrder order3 = solveRecursive(size3, partition3Matrix, partialSolution3Matrix);
+
+		vector<int> order1Vec = order1.getOrder();
+		vector<int> order2Vec = order2.getOrder();
+		vector<int> order3Vec = order3.getOrder();
+
+		vector<int> finalOrder;
+		for (int i = 0; i < size1; i++) {
+			finalOrder.push_back(partition1[order1Vec[i]]);
+		}
+		for (int i = 0; i < size2; i++) {
+			finalOrder.push_back(partition2[order2Vec[i]]);
+		}
+		for (int i = 0; i < size3; i++) {
+			finalOrder.push_back(partition3[order3Vec[i]]);
 		}
 
 		LinearOrder bestOrder(finalOrder);
