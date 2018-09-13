@@ -4,7 +4,6 @@
 #include<linear_order.h>
 #include<ranking.h>
 #include<local_search.h>
-#include<generic_callback.h>
 #include<heuristic_callback.h>
 
 #include<ilcplex/ilocplex.h>
