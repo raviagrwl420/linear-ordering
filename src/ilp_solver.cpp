@@ -77,6 +77,90 @@ float** solveLP (Ranking& ranking) {
 	return NULL;
 }
 
+void setCplexParams (IloCplex cplex) {
+	cplex.setParam(IloCplex::Param::MIP::Tolerances::Integrality, EPS);
+	cplex.setParam(IloCplex::Param::Simplex::Tolerances::Feasibility, EPS);
+	cplex.setParam(IloCplex::Param::MIP::Strategy::Search, 1);
+	cplex.setParam(IloCplex::Param::MIP::Strategy::NodeSelect, 3);
+	// cplex.setParam(IloCplex::Param::Parallel, 1);
+	// cplex.setParam(IloCplex::Param::Threads, 8);
+	// cplex.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, 5);
+}
+
+void setCallbacks (Ranking& ranking, IloCplex cplex, IloEnv env, IloArray<IloBoolVarArray> x, IloObjective obj) {
+	// Add callback using generic callback
+	// HeuristicCallback cb(x, matrix);
+	// cplex.use(&cb, IloCplex::Callback::Context::Id::Relaxation);
+
+	// Add callback using legacy callback
+	cplex.use(LegacyLazyConstraintCallback(env, cplex, x, obj, ranking));
+	cplex.use(LegacyUserCutCallback(env, cplex, x, obj, ranking));
+	cplex.use(LegacyHeuristicCallback(env, cplex, x, obj, ranking));
+}
+
+// Add MIP Start
+void addMIPStart (Ranking& ranking, IloCplex cplex, IloEnv env, IloArray<IloBoolVarArray> x) {
+	int size = ranking.getSize();
+
+	if (size > 35) {
+		// Flatten x for MIP start
+		IloNumVarArray flattenedX(env, size * size);
+		for (int i = 0; i < size; i++) {
+			for (int j = 0; j < size; j++) {
+				flattenedX[i * size + j] = x[i][j];
+			}
+		}
+	
+		IloNumArray startSolution(env, size * size);
+		LinearOrder startOrder = solvePartition(ranking, NULL);
+		vector<int> startOrderVec = startOrder.getOrder();
+
+		cout << "Start Weight: " << ranking.getWeight(startOrderVec) << endl;
+
+		for (int i = 0; i < size; i++) {
+			for (int j = i + 1; j < size; j++) {
+				startSolution[startOrderVec[i] * size + startOrderVec[j]] = 1;
+			}
+		}
+
+		cplex.addMIPStart(flattenedX, startSolution);
+
+		// Free Memory
+		flattenedX.end();
+		startSolution.end();
+	}
+}
+
+// Decode the solution
+LinearOrder decodeSolution (Ranking& ranking, IloCplex cplex, IloArray<IloBoolVarArray> x) {
+	int size = ranking.getSize();
+
+	// Add the values for each row
+	int* totals = new int[size];
+	for (int i = 0; i < size; i++) {
+		int total = 0;
+		for (int j = 0; j < size; j++) {
+			double value = cplex.getValue(x[i][j]);
+			total += (int) round(value); // Rounding is important!
+		}
+		totals[i] = total;
+	}
+
+	// Insert the node in its proper position in the order
+	vector<int> orderVec(size);
+	for (int i = 0; i < size; i++) {
+		int index = (size - 1) - totals[i];
+		orderVec[index] = i;
+	}
+
+	LinearOrder order(orderVec);
+
+	// Free Memory
+	delete [] totals;
+
+	return order;
+}
+
 LinearOrder solveILP (Ranking& ranking, bool disableOutput) {
 	// IloCplex::setParam(IloCplex::Param::MIP::Tolerances::Integrality, 0);
 	int size = ranking.getSize();
@@ -88,34 +172,19 @@ LinearOrder solveILP (Ranking& ranking, bool disableOutput) {
 		IloModel model(env);
 		IloCplex cplex(model);
 
+		// Disable output TODO: Fix disabling of output
 		if (disableOutput) {
 			cplex.setOut(env.getNullStream());
 		}
 
-		cplex.setParam(IloCplex::Param::MIP::Tolerances::Integrality, EPS);
-		cplex.setParam(IloCplex::Param::Simplex::Tolerances::Feasibility, EPS);
-		cplex.setParam(IloCplex::Param::MIP::Strategy::Search, 1);
-		// cplex.setParam(IloCplex::Param::Parallel, 1);
-		// cplex.setParam(IloCplex::Param::Threads, 8);
-		// cplex.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, 5);
+		// Set CPLEX Params
+		setCplexParams(cplex);
 
 		// Initialize variable array
 		IloArray<IloBoolVarArray> x(env, size);
 		for (int i = 0; i < size; i++) {
 			x[i] = IloBoolVarArray(env, size);
 		}
-
-		// Flatten x
-		IloNumVarArray flattenedX(env, size * size);
-		for (int i = 0; i < size; i++) {
-			for (int j = 0; j < size; j++) {
-				flattenedX[i * size + j] = x[i][j];
-			}
-		}
-
-		// Add callback
-		// HeuristicCallback cb(x, matrix);
-		// cplex.use(&cb, IloCplex::Callback::Context::Id::Relaxation);
 
 		// Initialize objective function
 		IloExpr objFunc(env);
@@ -140,11 +209,7 @@ LinearOrder solveILP (Ranking& ranking, bool disableOutput) {
 			}
 		}
 
-		cplex.use(LegacyLazyConstraintCallback(env, cplex, x, obj, ranking));
-		cplex.use(LegacyUserCutCallback(env, cplex, x, obj, ranking));
-		cplex.use(LegacyHeuristicCallback(env, cplex, x, obj, ranking));
-
-		// // Add cycle constraints
+		// // Add cycle constraints when using generic callback
 		// IloConstraintArray dicycleConstraints(env);
 		// IloConstraintArray dicycleConstraints2(env);
 		// for (int i = 0; i < size; i++) {
@@ -161,58 +226,29 @@ LinearOrder solveILP (Ranking& ranking, bool disableOutput) {
 		// // cplex.addLazyConstraints(dicycleConstraints);
 		// cplex.addUserCuts(dicycleConstraints2);
 
+		// Set callbacks
+		setCallbacks(ranking, cplex, env, x, obj);
+
 		// Add MIP Start
-		if (size > 35) {
-			// IloNumArray startSolution(env, size * size);
-			// LinearOrder startOrder = solvePartition(ranking, NULL);
-			// vector<int> startOrderVec = startOrder.getOrder();
-
-			// cout << "Start Weight: " << ranking.getWeight(startOrderVec) << endl;
-
-			// for (int i = 0; i < size; i++) {
-			// 	for (int j = i + 1; j < size; j++) {
-			// 		startSolution[startOrderVec[i] * size + startOrderVec[j]] = 1;
-			// 	}
-			// }
-
-			// cplex.addMIPStart(flattenedX, startSolution);
-			// flattenedX.end();
-			// startSolution.end();
-		}
+		// addMIPStart(ranking, cplex, env, x);
 
 		// Solve
 		cplex.solve();
 
-		cout << "Objective Value: " << cplex.getObjValue() << endl;
+		LinearOrder order = decodeSolution(ranking, cplex, x);
 
-		// Decode the solution
-		// Add the values for each row
-		int* totals = new int[size];
+		// Free Memory
 		for (int i = 0; i < size; i++) {
-			int total = 0;
-			for (int j = 0; j < size; j++) {
-				double value = cplex.getValue(x[i][j]);
-				total += (int) round(value);
-			}
-			totals[i] = total;
+			x[i].end();
 		}
+		x.end();
+		objFunc.end();
+		obj.end();
+		cplex.end();
+		model.end();
+		env.end();
 
-		// Insert the node in its proper position in the order
-		int* orderArray = new int[size];
-		for (int i = 0; i < size; i++) {
-			// cout << "Totals: " << totals[i] << endl;
-			int index = (size - 1) - totals[i];
-			orderArray[index] = i;
-		}
-
-		vector<int> orderVec;
-		for (int i = 0; i < size; i++) {
-			orderVec.push_back(orderArray[i]);
-		}
-
-		cout << "ILP Valid: " << LinearOrder(orderVec).validate() << endl;
-
-		return LinearOrder(orderVec);
+		return order;
 	} catch (IloException& e) {
 		cout << "ExceptionILP: " << e.getMessage() << endl;
 	}
@@ -472,9 +508,9 @@ LinearOrder solveTriPartition (Ranking& ranking, int** partialSolution) {
 
 		cout << "Counts: " << count[0] << " " << count[1] << " " << count[2] << endl;
 
-		int size1 = count[0];
+		int size1 = count[2];
 		int size2 = count[1];
-		int size3 = count[2];
+		int size3 = count[0];
 		int* partition1 = new int[size1];
 		int* partition2 = new int[size2];
 		int* partition3 = new int[size3];
@@ -657,6 +693,14 @@ LinearOrder solveRecursive(int size, float** partitionMatrix, int** intMatrix) {
 	return solved;
 }
 
+template <class T>
+void freeMemory (T** array, int size) {
+	for (int i = 0; i < size; i++) {
+		delete [] array[i];
+	}
+	delete [] array;
+}
+
 LinearOrder solvePartition (int size, float** matrix, Ranking& ranking) {
 	try {
 		// Initialize environment and model
@@ -741,6 +785,20 @@ LinearOrder solvePartition (int size, float** matrix, Ranking& ranking) {
 		LinearOrder improvedOrder = localSearchExpensive(size, intMatrix, bestOrder);
 
 		// cout << "Improved Weight: " << ranking.getWeight(improvedOrder.getOrder()) << endl; 
+
+		// Free Memory
+		x.end();
+		obj.end();
+		cplex.end();
+		model.end();
+		env.end();
+		delete [] values;
+		delete [] partition1;
+		delete [] partition2;
+		freeMemory(partition1Matrix, size1);
+		freeMemory(partition2Matrix, size2);
+		freeMemory(intPartitionMatrix1, size1);
+		freeMemory(intPartitionMatrix2, size2);
 
 		return improvedOrder;
 
