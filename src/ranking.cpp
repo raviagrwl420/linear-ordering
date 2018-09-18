@@ -52,19 +52,7 @@ void Ranking::initiateMatrixFromFile () {
 }
 
 int **Ranking::getMatrix () const {
-	int **copy = new int*[size];
-
-	for (int i = 0; i < size; i++) {
-		copy[i] = new int[size];
-	}
-
-	for (int i = 0; i < size; i++) {
-		for (int j = 0; j < size; j++) {
-			copy[i, j] = matrix[i, j];
-		}
-	}
-
-	return copy;
+	return matrix;
 }
 
 void Ranking::printMatrix () const {
