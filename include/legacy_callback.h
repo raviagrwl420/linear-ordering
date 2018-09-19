@@ -57,7 +57,7 @@ ILOLAZYCONSTRAINTCALLBACK4(LegacyLazyConstraintCallback, IloCplex, cplex, IloArr
 
 ILOUSERCUTCALLBACK4(LegacyUserCutCallback, IloCplex, cplex, IloArray<IloBoolVarArray>, x, IloObjective, obj, Ranking, ranking) {
 	float relaxationRatio = 1.0 / 3;
-	// int maxCutCount = 100;
+	int maxCutCount = 200;
 
 	if (!isAfterCutLoop()) {
 		return;
@@ -114,9 +114,9 @@ ILOUSERCUTCALLBACK4(LegacyUserCutCallback, IloCplex, cplex, IloArray<IloBoolVarA
 							add(x[i][j] + x[j][k] + x[k][i] <= 2).end();
 							count++;
 
-							// if (count > maxCutCount) {
-							// 	goto end;
-							// }
+							if (count > maxCutCount) {
+								goto end;
+							}
 						}
 					}
 				}
@@ -131,12 +131,13 @@ ILOUSERCUTCALLBACK4(LegacyUserCutCallback, IloCplex, cplex, IloArray<IloBoolVarA
 					for (int k = i + 1; k < size; k++) {
 						if (j != k) {
 							if (cutOffPoint[i][j] + cutOffPoint[j][k] + cutOffPoint[k][i] > 2 + EPS) {
+								// IloCplex::CutManagement::UseCutFilter
 								add(x[i][j] + x[j][k] + x[k][i] <= 2).end();
 								count++;
 
-								// if (count > maxCutCount) {
-								// 	goto end;
-								// }
+								if (count > maxCutCount) {
+									goto end;
+								}
 							}
 						}
 					}
@@ -163,6 +164,68 @@ ILOUSERCUTCALLBACK4(LegacyUserCutCallback, IloCplex, cplex, IloArray<IloBoolVarA
 	}
 
 	return;
+}
+
+LinearOrder getSimpleHeuristicSolution(Ranking& ranking, int size, float** fractionals) {
+	vector<float> totals(size);
+
+	for (int i = 0; i < size; i++) {
+		totals[i] = 0;
+		for (int j = 0; j < size; j++) {
+			if (i != j) {
+				totals[i] += fractionals[i][j];	
+			}
+		}
+	}
+
+	LinearOrder order(totals);
+	vector<int> orderVec = order.getOrder();
+
+	// Reverse
+	vector<int> reverseOrderVec;
+	for (int i = 1; i <= size; i++) {
+		reverseOrderVec.push_back(orderVec[size - i]);
+	}
+
+	return LinearOrder(reverseOrderVec);
+}
+
+LinearOrder getOurHeuristicSolution(Ranking& ranking, int size, float** fractionals) {
+	return solvePartition(size, fractionals, ranking);
+}
+
+LinearOrder getOurAlternateHeuristicSolution(Ranking& ranking, int size, IloArray<IloNumArray> vars) {
+	// Initialize new array for partial solution
+	int** partialSolution = new int*[size];
+	for (int i = 0; i < size; i++) {
+		partialSolution[i] = new int[size];
+	}
+
+	for (int i = 0; i < size; i++) {
+		for (int j = 0; j < size; j++) {
+			if ( 1 - EPS <= vars[i][j]) {
+				partialSolution[i][j] = 1;
+			} else {
+				partialSolution[i][j] = 0;
+			}
+		}
+	}
+
+	// Temp
+	Ranking partialRanking(size, partialSolution);
+	int numComponents = strongly_connected_components(partialRanking);
+	if (numComponents < size) {
+		return LinearOrder(0);
+	}
+
+	LinearOrder order = solvePartition(ranking, partialSolution);
+
+	for (int i = 0; i < size; i++) {
+		delete [] partialSolution[i];
+	}
+	delete [] partialSolution;
+
+	return order;
 }
 
 ILOHEURISTICCALLBACK4(LegacyHeuristicCallback, IloCplex, cplex, IloArray<IloBoolVarArray>, x, IloObjective, obj, Ranking, ranking) {
@@ -193,34 +256,6 @@ ILOHEURISTICCALLBACK4(LegacyHeuristicCallback, IloCplex, cplex, IloArray<IloBool
 		// Initialize a new variable to store the new feasible solution
 		IloNumArray newSolution(env, size * size);
 
-		// Initialize new array for partial solution
-		// int** partialSolution = new int*[size];
-		// for (int i = 0; i < size; i++) {
-		// 	partialSolution[i] = new int[size];
-		// }
-
-		// for (int i = 0; i < size; i++) {
-		// 	for (int j = 0; j < size; j++) {
-		// 		partialSolution[i][j] = 0;
-		// 	}
-		// }
-
-		// for (int i = 0; i < size; i++) {
-		// 	for (int j = 0; j < size; j++) {
-		// 		if ( 1 - EPS <= vars[i][j]) {
-		// 			partialSolution[i][j] = 1;
-		// 		}
-		// 	}
-		// }
-
-		// Temp
-		// Ranking partialRanking(size, partialSolution);
-		// int numComponents = strongly_connected_components(partialRanking);
-		// if (numComponents < size) {
-		// 	cout << "Size: "<< size << " Components: " << numComponents << endl;
-		// 	return;
-		// }
-
 		float** fractionals = new float*[size];
 		for (int i = 0; i < size; i++) {
 			fractionals[i] = new float[size];
@@ -230,12 +265,27 @@ ILOHEURISTICCALLBACK4(LegacyHeuristicCallback, IloCplex, cplex, IloArray<IloBool
 		}
 
 		// Compute Heuristic Solution
-		// Ranking ranking(size, matrix);
-		LinearOrder order = solvePartition(size, fractionals, ranking);
-		vector<int> orderVec = order.getOrder();
+		LinearOrder simpleOrder = getSimpleHeuristicSolution(ranking, size, fractionals);
+		LinearOrder ourOrder = getOurHeuristicSolution(ranking, size, fractionals);
+		LinearOrder ourAlternateOrder = getOurAlternateHeuristicSolution(ranking, size, vars);
+		vector<int> simpleOrderVec = simpleOrder.getOrder();
+		vector<int> ourOrderVec = ourOrder.getOrder();
 
+		double simpleObjective = ranking.getWeight(simpleOrderVec);
+		double ourObjective = ranking.getWeight(ourOrderVec);
+		cout << endl << endl << "Feasible Objective simpleObjective: " << simpleObjective << endl;
+		cout << "Feasible Objective Ours: " << ourObjective << endl;
+
+		if (ourAlternateOrder.getOrder().size() != 0) {
+			vector<int> ourAlternateOrderVec = ourAlternateOrder.getOrder();
+			double ourAlternateObjective = ranking.getWeight(ourAlternateOrderVec);
+			cout << "Feasible Objective Ours Alternate: " << ourAlternateObjective << endl;
+		}
+
+		cout << endl << endl;
+
+		vector<int> orderVec = ourOrderVec;
 		double newObjective = ranking.getWeight(orderVec);
-		cout << endl << endl << "Feasible Objective: " << newObjective << endl << endl << endl;
 
 		// Decode Heuristic Solution
 		for (int i = 0; i < size; i++) {
