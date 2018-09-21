@@ -55,13 +55,15 @@ ILOLAZYCONSTRAINTCALLBACK4(LegacyLazyConstraintCallback, IloCplex, cplex, IloArr
 	return;
 }
 
-ILOUSERCUTCALLBACK4(LegacyUserCutCallback, IloCplex, cplex, IloArray<IloBoolVarArray>, x, IloObjective, obj, Ranking, ranking) {
+ILOUSERCUTCALLBACK5(LegacyUserCutCallback, IloCplex, cplex, IloArray<IloBoolVarArray>, x, IloObjective, obj, Ranking, ranking, bool***, constraintsLog) {
 	float relaxationRatio = 1.0 / 3;
-	int maxCutCount = 200;
+	// int maxCutCount = 200;
 
 	if (!isAfterCutLoop()) {
 		return;
 	}
+
+	// initializeAddedConstraintsLog(ranking.getSize());
 
 	try {
 		// Get size and matrix from ranking
@@ -110,13 +112,14 @@ ILOUSERCUTCALLBACK4(LegacyUserCutCallback, IloCplex, cplex, IloArray<IloBoolVarA
 			for (int j = i + 1; j < size; j++) {
 				for (int k = i + 1; k < size; k++) {
 					if (j != k) {
-						if (cutOffPoint[i][j] + cutOffPoint[j][k] + cutOffPoint[k][i] > 2 + EPS) {
-							add(x[i][j] + x[j][k] + x[k][i] <= 2).end();
+						if (!constraintsLog[i][j][k] && cutOffPoint[i][j] + cutOffPoint[j][k] + cutOffPoint[k][i] > 2 + EPS) {
+							add(x[i][j] + x[j][k] + x[k][i] <= 2, IloCplex::CutManagement::UseCutPurge).end();
 							count++;
+							constraintsLog[i][j][k] = true;
 
-							if (count > maxCutCount) {
-								goto end;
-							}
+							// if (count > maxCutCount) {
+							// 	goto end;
+							// }
 						}
 					}
 				}
@@ -130,14 +133,15 @@ ILOUSERCUTCALLBACK4(LegacyUserCutCallback, IloCplex, cplex, IloArray<IloBoolVarA
 				for (int j = i + 1; j < size; j++) {
 					for (int k = i + 1; k < size; k++) {
 						if (j != k) {
-							if (cutOffPoint[i][j] + cutOffPoint[j][k] + cutOffPoint[k][i] > 2 + EPS) {
+							if (!constraintsLog[i][j][k] && cutOffPoint[i][j] + cutOffPoint[j][k] + cutOffPoint[k][i] > 2 + EPS) {
 								// IloCplex::CutManagement::UseCutFilter
-								add(x[i][j] + x[j][k] + x[k][i] <= 2).end();
+								add(x[i][j] + x[j][k] + x[k][i] <= 2, IloCplex::CutManagement::UseCutPurge).end();
 								count++;
+								constraintsLog[i][j][k] = true;
 
-								if (count > maxCutCount) {
-									goto end;
-								}
+								// if (count > maxCutCount) {
+								// 	goto end;
+								// }
 							}
 						}
 					}

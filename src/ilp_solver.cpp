@@ -81,20 +81,20 @@ void setCplexParams (IloCplex cplex) {
 	cplex.setParam(IloCplex::Param::MIP::Tolerances::Integrality, EPS);
 	cplex.setParam(IloCplex::Param::Simplex::Tolerances::Feasibility, EPS);
 	cplex.setParam(IloCplex::Param::MIP::Strategy::Search, 1);
-	cplex.setParam(IloCplex::Param::MIP::Strategy::NodeSelect, 3);
+	// cplex.setParam(IloCplex::Param::MIP::Strategy::NodeSelect, 3);
 	// cplex.setParam(IloCplex::Param::Parallel, 1);
-	// cplex.setParam(IloCplex::Param::Threads, 8);
+	cplex.setParam(IloCplex::Param::Threads, 3);
 	// cplex.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, 5);
 }
 
-void setCallbacks (Ranking& ranking, IloCplex cplex, IloEnv env, IloArray<IloBoolVarArray> x, IloObjective obj) {
+void setCallbacks (Ranking& ranking, IloCplex cplex, IloEnv env, IloArray<IloBoolVarArray> x, IloObjective obj, bool*** constraintsLog) {
 	// Add callback using generic callback
 	// HeuristicCallback cb(x, matrix);
 	// cplex.use(&cb, IloCplex::Callback::Context::Id::Relaxation);
 
 	// Add callback using legacy callback
 	cplex.use(LegacyLazyConstraintCallback(env, cplex, x, obj, ranking));
-	cplex.use(LegacyUserCutCallback(env, cplex, x, obj, ranking));
+	cplex.use(LegacyUserCutCallback(env, cplex, x, obj, ranking, constraintsLog));
 	cplex.use(LegacyHeuristicCallback(env, cplex, x, obj, ranking));
 }
 
@@ -161,10 +161,36 @@ LinearOrder decodeSolution (Ranking& ranking, IloCplex cplex, IloArray<IloBoolVa
 	return order;
 }
 
+bool*** initializeConstraintsLog (Ranking& ranking) {
+	int size = ranking.getSize();
+	bool*** constraintsLog = new bool**[size];
+	for (int i = 0; i < size; i++) {
+		constraintsLog[i] = new bool*[size];
+		for (int j = 0; j < size; j++) {
+			constraintsLog[i][j] = new bool[size];
+			for (int k = 0; k < size; k++) {
+				constraintsLog[i][j][k] = false;
+			}
+		}	
+	}
+	return constraintsLog;
+}
+
+void freeConstraintLog (bool*** constraintsLog, int size) {
+	for (int i = 0; i < size; i++) {
+		for (int j = 0; j < size; j++) {
+			delete [] constraintsLog[i][j];
+		}
+		delete [] constraintsLog[i];
+	}
+	delete [] constraintsLog;
+}
+
 LinearOrder solveILP (Ranking& ranking, bool disableOutput) {
 	// IloCplex::setParam(IloCplex::Param::MIP::Tolerances::Integrality, 0);
 	int size = ranking.getSize();
 	int** matrix = ranking.getMatrix();
+	bool*** constraintsLog = initializeConstraintsLog(ranking);
 
 	try {
 		// Initialize environment and model
@@ -227,7 +253,7 @@ LinearOrder solveILP (Ranking& ranking, bool disableOutput) {
 		// cplex.addUserCuts(dicycleConstraints2);
 
 		// Set callbacks
-		setCallbacks(ranking, cplex, env, x, obj);
+		setCallbacks(ranking, cplex, env, x, obj, constraintsLog);
 
 		// Add MIP Start
 		// addMIPStart(ranking, cplex, env, x);
@@ -247,6 +273,7 @@ LinearOrder solveILP (Ranking& ranking, bool disableOutput) {
 		cplex.end();
 		model.end();
 		env.end();
+		freeConstraintLog(constraintsLog, size);
 
 		return order;
 	} catch (IloException& e) {
