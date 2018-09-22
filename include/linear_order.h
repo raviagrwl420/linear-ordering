@@ -40,9 +40,13 @@ class LinearOrder {
 		LinearOrder (const LinearOrder&);
 
 		bool validate ();
+		int getSize () {
+			return size;
+		};
 
 		vector<int> getPermutation (vector<float> randoms);
 		vector<int> getOrder ();
+		int operator [] (int);
 		void printOrder ();
 
 		int improvementForInsertMove(int**, int, int);

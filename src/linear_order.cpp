@@ -111,6 +111,11 @@ vector<int> LinearOrder::getOrder () {
 	return orderCopy;
 }
 
+// Getter for index
+int LinearOrder::operator [] (int i){
+	return order[i];
+}
+
 // Print order
 void LinearOrder::printOrder () {
 	for (int node: order) {
