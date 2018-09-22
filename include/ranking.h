@@ -1,6 +1,7 @@
 #ifndef RANKING_H
 #define RANKING_H
 
+#include<linear_order.h>
 #include<io.h>
 
 #include<vector>
@@ -40,6 +41,7 @@ class Ranking {
 		void printMatrix () const;
 
 		int getWeight (vector<int>) const;
+		int getWeight (LinearOrder) const;
 };
 
 #endif
