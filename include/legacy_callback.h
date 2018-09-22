@@ -204,39 +204,6 @@ LinearOrder getOurHeuristicSolution(Ranking& ranking, float** fractionals) {
 	return solvePartition(size, fractionals, ranking);
 }
 
-LinearOrder getOurAlternateHeuristicSolution(Ranking& ranking, IloArray<IloNumArray> vars) {
-	int size = ranking.getSize();
-
-	// Initialize new array for partial solution
-	int** partialSolution = new int*[size];
-	for (int i = 0; i < size; i++) {
-		partialSolution[i] = new int[size];
-	}
-
-	for (int i = 0; i < size; i++) {
-		for (int j = 0; j < size; j++) {
-			if ( 1 - EPS <= vars[i][j]) {
-				partialSolution[i][j] = 1;
-			} else {
-				partialSolution[i][j] = 0;
-			}
-		}
-	}
-
-	// Temp
-	Ranking partialRanking(size, partialSolution);
-	int numComponents = strongly_connected_components(partialRanking);
-	if (numComponents < size) {
-		return LinearOrder(0);
-	}
-
-	LinearOrder order = solvePartition(ranking, partialSolution);
-
-	freeMemory2D(partialSolution, size);
-
-	return order;
-}
-
 LinearOrder getHeuristicSolution (Ranking& ranking, IloArray<IloNumArray> vars) {
 	int size = ranking.getSize();
 
@@ -251,14 +218,10 @@ LinearOrder getHeuristicSolution (Ranking& ranking, IloArray<IloNumArray> vars) 
 	// Compute Heuristic Solutions
 	LinearOrder simple = getSimpleHeuristicSolution(ranking, fractionals);
 	LinearOrder ours = getOurHeuristicSolution(ranking, fractionals);
-	LinearOrder oursAlternate = getOurAlternateHeuristicSolution(ranking, vars);
 
 	cout << endl << endl;
 	cout << "Simple Objective: " << ranking.getWeight(simple) << endl;
 	cout << "Ours Objective: " << ranking.getWeight(ours) << endl;
-	if (oursAlternate.getSize() != 0) {
-		cout << "Ours Alternate Objective: " << ranking.getWeight(oursAlternate) << endl;
-	}
 	cout << endl << endl;
 
 	freeMemory2D(fractionals, size);
