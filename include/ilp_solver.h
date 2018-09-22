@@ -5,6 +5,7 @@
 #include<ranking.h>
 #include<local_search.h>
 #include<heuristic_callback.h>
+#include<constraint.h>
 
 #include<ilcplex/ilocplex.h>
 #include<math.h>
