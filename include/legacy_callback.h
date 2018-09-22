@@ -5,11 +5,22 @@
 #include<ranking.h>
 #include<io.h>
 #include<graph.h>
+#include<constraint.h>
+#include<local_search.h>
+#include<memory_management.h>
 
 #include<ilcplex/ilocplex.h>
 #include<vector>
 
-#define EPS 1e-4
+#define EPS 1e-8
+
+void freeMemory (IloArray<IloNumArray> vars) {
+	int size = vars.getSize();
+	for (int i = 0; i < size; i++) {
+		vars[i].end();
+	}
+	vars.end();
+}
 
 ILOLAZYCONSTRAINTCALLBACK4(LegacyLazyConstraintCallback, IloCplex, cplex, IloArray<IloBoolVarArray>, x, IloObjective, obj, Ranking, ranking) {
 	try {
@@ -41,10 +52,7 @@ ILOLAZYCONSTRAINTCALLBACK4(LegacyLazyConstraintCallback, IloCplex, cplex, IloArr
 		}
 
 		// Free Memory
-		for (int i = 0; i < size; i++) {
-			vars[i].end();
-		}
-		vars.end();
+		freeMemory(vars);
 	} catch (IloException& e) {
 		cout << "LegacyLazyConstraintCallbackException: " << e.getMessage() << endl;
 		e.end();
@@ -55,17 +63,15 @@ ILOLAZYCONSTRAINTCALLBACK4(LegacyLazyConstraintCallback, IloCplex, cplex, IloArr
 	return;
 }
 
-ILOUSERCUTCALLBACK5(LegacyUserCutCallback, IloCplex, cplex, IloArray<IloBoolVarArray>, x, IloObjective, obj, Ranking, ranking, bool***, constraintsLog) {
-	float relaxationRatio = 1.0 / 3;
-	// int maxCutCount = 200;
-
+ILOUSERCUTCALLBACK5(LegacyUserCutCallback, IloCplex, cplex, IloArray<IloBoolVarArray>, x, IloObjective, obj, Ranking, ranking, vector<Constraint>, constraints) {
 	if (!isAfterCutLoop()) {
 		return;
 	}
 
-	// initializeAddedConstraintsLog(ranking.getSize());
-
 	try {
+		float relaxationRatio = 1.0 / 3;
+		int maxCutCount = 500;
+
 		// Get size and matrix from ranking
 		int size = ranking.getSize();
 		int** matrix = ranking.getMatrix();
@@ -74,6 +80,7 @@ ILOUSERCUTCALLBACK5(LegacyUserCutCallback, IloCplex, cplex, IloArray<IloBoolVarA
 		IloEnv env = getEnv();
 
 		// Initialize a new variables to store the relaxation and best incumbent
+		bool integerSolutionExists = true;
 		IloArray<IloNumArray> vars(env, size);
 		IloArray<IloNumArray> bestInteger(env, size);
 		for (int i = 0; i < size; i++) {
@@ -88,9 +95,7 @@ ILOUSERCUTCALLBACK5(LegacyUserCutCallback, IloCplex, cplex, IloArray<IloBoolVarA
 			} catch (IloCplex::Exception& e) {
 				// If no solution exists.
 				if (e.getStatus() == 1217) {
-					for (int j = 0; j < size; j++) {
-						bestInteger[i][j] = 0;
-					}	
+					integerSolutionExists = false;
 				}
 				e.end();
 			}
@@ -108,18 +113,21 @@ ILOUSERCUTCALLBACK5(LegacyUserCutCallback, IloCplex, cplex, IloArray<IloBoolVarA
 		// Try to cut off convex combination of relaxation and best incumbent
 		IloArray<IloNumArray> cutOffPoint = convex;
 		int count = 0;
-		for (int i = 0; i < size; i++) {
-			for (int j = i + 1; j < size; j++) {
-				for (int k = i + 1; k < size; k++) {
-					if (j != k) {
-						if (!constraintsLog[i][j][k] && cutOffPoint[i][j] + cutOffPoint[j][k] + cutOffPoint[k][i] > 2 + EPS) {
-							add(x[i][j] + x[j][k] + x[k][i] <= 2, IloCplex::CutManagement::UseCutPurge).end();
-							count++;
-							constraintsLog[i][j][k] = true;
 
-							// if (count > maxCutCount) {
-							// 	goto end;
-							// }
+		if (integerSolutionExists) {
+			for (Constraint& constraint: constraints) {
+				if (constraint.active) {
+					int i = constraint.i;
+					int j = constraint.j;
+					int k = constraint.k;
+
+					if (cutOffPoint[i][j] + cutOffPoint[j][k] + cutOffPoint[k][i] > 2 + EPS) {
+						add(x[i][j] + x[j][k] + x[k][i] <= 2, IloCplex::CutManagement::UseCutPurge).end();
+						constraint.deactivate();
+						count++;
+
+						if (count > maxCutCount) {
+							goto end;
 						}
 					}
 				}
@@ -129,20 +137,19 @@ ILOUSERCUTCALLBACK5(LegacyUserCutCallback, IloCplex, cplex, IloArray<IloBoolVarA
 		// If convex combination cannot be cut off then cut off relaxation
 		if (count == 0) {
 			cutOffPoint = vars;
-			for (int i = 0; i < size; i++) {
-				for (int j = i + 1; j < size; j++) {
-					for (int k = i + 1; k < size; k++) {
-						if (j != k) {
-							if (!constraintsLog[i][j][k] && cutOffPoint[i][j] + cutOffPoint[j][k] + cutOffPoint[k][i] > 2 + EPS) {
-								// IloCplex::CutManagement::UseCutFilter
-								add(x[i][j] + x[j][k] + x[k][i] <= 2, IloCplex::CutManagement::UseCutPurge).end();
-								count++;
-								constraintsLog[i][j][k] = true;
+			for (Constraint& constraint: constraints) {
+				if (constraint.active) {
+					int i = constraint.i;
+					int j = constraint.j;
+					int k = constraint.k;
 
-								// if (count > maxCutCount) {
-								// 	goto end;
-								// }
-							}
+					if (cutOffPoint[i][j] + cutOffPoint[j][k] + cutOffPoint[k][i] > 2 + EPS) {
+						add(x[i][j] + x[j][k] + x[k][i] <= 2, IloCplex::CutManagement::UseCutPurge).end();
+						constraint.deactivate();
+						count++;
+
+						if (count > maxCutCount) {
+							goto end;
 						}
 					}
 				}
@@ -152,14 +159,9 @@ ILOUSERCUTCALLBACK5(LegacyUserCutCallback, IloCplex, cplex, IloArray<IloBoolVarA
 		end:;
 
 		// Free Memory
-		for (int i = 0; i < size; i++) {
-			vars[i].end();
-			bestInteger[i].end();
-			convex[i].end();
-		}
-		vars.end();
-		bestInteger.end();
-		convex.end();
+		freeMemory(vars);
+		freeMemory(bestInteger);
+		freeMemory(convex);
 	} catch (IloException& e) {
 		cout << "LegacyUserCutCallbackException: " << e.getMessage() << endl;
 		e.end();
@@ -224,10 +226,7 @@ LinearOrder getOurAlternateHeuristicSolution(Ranking& ranking, int size, IloArra
 
 	LinearOrder order = solvePartition(ranking, partialSolution);
 
-	for (int i = 0; i < size; i++) {
-		delete [] partialSolution[i];
-	}
-	delete [] partialSolution;
+	freeMemory2D(partialSolution, size);
 
 	return order;
 }
@@ -250,6 +249,7 @@ ILOHEURISTICCALLBACK4(LegacyHeuristicCallback, IloCplex, cplex, IloArray<IloBool
 		}
 
 		// Flatten x array
+		// TODO: Pass the flattened X array
 		IloIntVarArray flattenedX(env, size * size);
 		for (int i = 0; i < size; i++) {
 			for (int j = 0; j < size; j++) {
@@ -302,16 +302,13 @@ ILOHEURISTICCALLBACK4(LegacyHeuristicCallback, IloCplex, cplex, IloArray<IloBool
 		setSolution(flattenedX, newSolution, newObjective);
 
 		// Free Memory
-		for (int i = 0; i < size; i++) {
-			vars[i].end();
-			delete [] fractionals[i];
-		}
-		vars.end();
+		freeMemory(vars);
 		flattenedX.end();
 		newSolution.end();
-		delete [] fractionals;
+		freeMemory2D(fractionals, size);
 	} catch (IloException& e) {
 		cout << "LegacyNodeCallbackException: " << e.getMessage() << endl;
+		e.end();
 	} catch (...) {
 		cout << "GenericException!" << endl;
 	}
