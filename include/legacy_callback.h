@@ -13,6 +13,7 @@
 #include<vector>
 
 #define EPS 1e-8
+#define LOCAL_ENUMERATION_WINDOW 8
 
 void freeMemory (IloArray<IloNumArray> vars) {
 	int size = vars.getSize();
@@ -172,9 +173,10 @@ ILOUSERCUTCALLBACK5(LegacyUserCutCallback, IloCplex, cplex, IloArray<IloBoolVarA
 	return;
 }
 
-LinearOrder getSimpleHeuristicSolution(Ranking& ranking, int size, float** fractionals) {
-	vector<float> totals(size);
+LinearOrder getSimpleHeuristicSolution(Ranking& ranking, float** fractionals) {
+	int size = ranking.getSize();
 
+	vector<float> totals(size);
 	for (int i = 0; i < size; i++) {
 		totals[i] = 0;
 		for (int j = 0; j < size; j++) {
@@ -185,22 +187,26 @@ LinearOrder getSimpleHeuristicSolution(Ranking& ranking, int size, float** fract
 	}
 
 	LinearOrder order(totals);
-	vector<int> orderVec = order.getOrder();
 
 	// Reverse
 	vector<int> reverseOrderVec;
 	for (int i = 1; i <= size; i++) {
-		reverseOrderVec.push_back(orderVec[size - i]);
+		reverseOrderVec.push_back(order[size - i]);
 	}
 
-	return LinearOrder(reverseOrderVec);
+	LinearOrder initialOrder(reverseOrderVec);
+
+	return localEnumeration(ranking, initialOrder, LOCAL_ENUMERATION_WINDOW);
 }
 
-LinearOrder getOurHeuristicSolution(Ranking& ranking, int size, float** fractionals) {
+LinearOrder getOurHeuristicSolution(Ranking& ranking, float** fractionals) {
+	int size = ranking.getSize();
 	return solvePartition(size, fractionals, ranking);
 }
 
-LinearOrder getOurAlternateHeuristicSolution(Ranking& ranking, int size, IloArray<IloNumArray> vars) {
+LinearOrder getOurAlternateHeuristicSolution(Ranking& ranking, IloArray<IloNumArray> vars) {
+	int size = ranking.getSize();
+
 	// Initialize new array for partial solution
 	int** partialSolution = new int*[size];
 	for (int i = 0; i < size; i++) {
@@ -229,6 +235,35 @@ LinearOrder getOurAlternateHeuristicSolution(Ranking& ranking, int size, IloArra
 	freeMemory2D(partialSolution, size);
 
 	return order;
+}
+
+LinearOrder getHeuristicSolution (Ranking& ranking, IloArray<IloNumArray> vars) {
+	int size = ranking.getSize();
+
+	float** fractionals = new float*[size];
+	for (int i = 0; i < size; i++) {
+		fractionals[i] = new float[size];
+		for (int j = 0; j < size; j++) {
+			fractionals[i][j] = vars[i][j];
+		}
+	}
+
+	// Compute Heuristic Solutions
+	LinearOrder simple = getSimpleHeuristicSolution(ranking, fractionals);
+	LinearOrder ours = getOurHeuristicSolution(ranking, fractionals);
+	LinearOrder oursAlternate = getOurAlternateHeuristicSolution(ranking, vars);
+
+	cout << endl << endl;
+	cout << "Simple Objective: " << ranking.getWeight(simple) << endl;
+	cout << "Ours Objective: " << ranking.getWeight(ours) << endl;
+	if (oursAlternate.getSize() != 0) {
+		cout << "Ours Alternate Objective: " << ranking.getWeight(oursAlternate) << endl;
+	}
+	cout << endl << endl;
+
+	freeMemory2D(fractionals, size);
+
+	return ours;
 }
 
 ILOHEURISTICCALLBACK4(LegacyHeuristicCallback, IloCplex, cplex, IloArray<IloBoolVarArray>, x, IloObjective, obj, Ranking, ranking) {
@@ -260,43 +295,16 @@ ILOHEURISTICCALLBACK4(LegacyHeuristicCallback, IloCplex, cplex, IloArray<IloBool
 		// Initialize a new variable to store the new feasible solution
 		IloNumArray newSolution(env, size * size);
 
-		float** fractionals = new float*[size];
-		for (int i = 0; i < size; i++) {
-			fractionals[i] = new float[size];
-			for (int j = 0; j < size; j++) {
-				fractionals[i][j] = vars[i][j];
-			}
-		}
-
 		// Compute Heuristic Solution
-		LinearOrder simpleOrder = getSimpleHeuristicSolution(ranking, size, fractionals);
-		LinearOrder ourOrder = getOurHeuristicSolution(ranking, size, fractionals);
-		LinearOrder ourAlternateOrder = getOurAlternateHeuristicSolution(ranking, size, vars);
-		vector<int> simpleOrderVec = simpleOrder.getOrder();
-		vector<int> ourOrderVec = ourOrder.getOrder();
-
-		double simpleObjective = ranking.getWeight(simpleOrderVec);
-		double ourObjective = ranking.getWeight(ourOrderVec);
-		cout << endl << endl << "Feasible Objective simpleObjective: " << simpleObjective << endl;
-		cout << "Feasible Objective Ours: " << ourObjective << endl;
-
-		if (ourAlternateOrder.getOrder().size() != 0) {
-			vector<int> ourAlternateOrderVec = ourAlternateOrder.getOrder();
-			double ourAlternateObjective = ranking.getWeight(ourAlternateOrderVec);
-			cout << "Feasible Objective Ours Alternate: " << ourAlternateObjective << endl;
-		}
-
-		cout << endl << endl;
-
-		vector<int> orderVec = ourOrderVec;
-		double newObjective = ranking.getWeight(orderVec);
+		LinearOrder order = getHeuristicSolution(ranking, vars);
 
 		// Decode Heuristic Solution
 		for (int i = 0; i < size; i++) {
 			for (int j = i + 1; j < size; j++) {
-				newSolution[orderVec[i] * size + orderVec[j]] = 1;
+				newSolution[order[i] * size + order[j]] = 1;
 			}
 		}
+		int newObjective = ranking.getWeight(order);
 
 		// Set Solution
 		setSolution(flattenedX, newSolution, newObjective);
@@ -305,7 +313,6 @@ ILOHEURISTICCALLBACK4(LegacyHeuristicCallback, IloCplex, cplex, IloArray<IloBool
 		freeMemory(vars);
 		flattenedX.end();
 		newSolution.end();
-		freeMemory2D(fractionals, size);
 	} catch (IloException& e) {
 		cout << "LegacyNodeCallbackException: " << e.getMessage() << endl;
 		e.end();
