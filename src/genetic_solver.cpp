@@ -177,9 +177,9 @@ LinearOrder GeneticSolver::solve (bool file) {
 		return weight;
 	};
 
-	function<LinearOrder(Chromosome)> localSearchProcedure = [chromosome_length, matrix] (Chromosome chromosome) -> LinearOrder {
+	function<LinearOrder(Chromosome)> localSearchProcedure = [ranking] (Chromosome chromosome) -> LinearOrder {
 		LinearOrder order(chromosome.getGenes());
-		order = localSearch(chromosome_length, matrix, order);
+		order = localSearch(ranking, order);
 		return order;
 	};
 

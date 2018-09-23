@@ -6,6 +6,7 @@
 #include<local_search.h>
 #include<heuristic_callback.h>
 #include<constraint.h>
+#include<matrix.h>
 
 #include<ilcplex/ilocplex.h>
 #include<math.h>

@@ -2,6 +2,15 @@
 #define MEMORY_H
 
 template <class T>
+void freeMemory (T vars) {
+	int size = vars.getSize();
+	for (int i = 0; i < size; i++) {
+		vars[i].end();
+	}
+	vars.end();
+}
+
+template <class T>
 void freeMemory1D(T* array1d, int size) {
 	delete [] array1d;
 };
