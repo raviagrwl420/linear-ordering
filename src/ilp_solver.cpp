@@ -448,6 +448,8 @@ LinearOrder solvePartition (int size, float** matrix, Ranking& ranking) {
 		IloModel model(env);
 		IloCplex cplex(model);
 
+		cplex.setOut(env.getNullStream());
+
 		// Initialize variable array
 		IloBoolVarArray x(env, size);
 
