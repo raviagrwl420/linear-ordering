@@ -14,6 +14,8 @@
 
 #define EPS 1e-8
 #define LOCAL_ENUMERATION_WINDOW 8
+#define RELAXATION_RATIO 1.0/3.0
+#define MAX_CUTS_PER_ITERATION 500
 
 void freeMemory (IloArray<IloNumArray> vars) {
 	int size = vars.getSize();
@@ -70,9 +72,6 @@ ILOUSERCUTCALLBACK5(LegacyUserCutCallback, IloCplex, cplex, IloArray<IloBoolVarA
 	}
 
 	try {
-		float relaxationRatio = 1.0 / 3;
-		int maxCutCount = 500;
-
 		// Get size and matrix from ranking
 		int size = ranking.getSize();
 		int** matrix = ranking.getMatrix();
@@ -107,7 +106,7 @@ ILOUSERCUTCALLBACK5(LegacyUserCutCallback, IloCplex, cplex, IloArray<IloBoolVarA
 		for (int i = 0; i < size; i++) {
 			convex[i] = IloNumArray(env, size);
 			for (int j = 0; j < size; j++) {
-				convex[i][j] = relaxationRatio * vars[i][j] + (1 - relaxationRatio) * bestInteger[i][j];
+				convex[i][j] = RELAXATION_RATIO * vars[i][j] + (1 - RELAXATION_RATIO) * bestInteger[i][j];
 			}
 		}
 
@@ -127,7 +126,7 @@ ILOUSERCUTCALLBACK5(LegacyUserCutCallback, IloCplex, cplex, IloArray<IloBoolVarA
 						constraint.deactivate();
 						count++;
 
-						if (count > maxCutCount) {
+						if (count >= MAX_CUTS_PER_ITERATION) {
 							goto end;
 						}
 					}
@@ -149,7 +148,7 @@ ILOUSERCUTCALLBACK5(LegacyUserCutCallback, IloCplex, cplex, IloArray<IloBoolVarA
 						constraint.deactivate();
 						count++;
 
-						if (count > maxCutCount) {
+						if (count >= MAX_CUTS_PER_ITERATION) {
 							goto end;
 						}
 					}
@@ -202,6 +201,36 @@ LinearOrder getSimpleHeuristicSolution(Ranking& ranking, float** fractionals) {
 LinearOrder getOurHeuristicSolution(Ranking& ranking, float** fractionals) {
 	int size = ranking.getSize();
 	return solvePartition(size, fractionals, ranking);
+}
+
+bool isFeasible (Ranking& ranking, IloArray<IloNumArray> vars) {
+	int size = ranking.getSize();
+
+	// Initialize new array for partial solution
+	int** partialSolution = new int*[size];
+	for (int i = 0; i < size; i++) {
+		partialSolution[i] = new int[size];
+	}
+
+	for (int i = 0; i < size; i++) {
+		for (int j = 0; j < size; j++) {
+			if ( 1 - EPS <= vars[i][j]) {
+				partialSolution[i][j] = 1;
+			} else {
+				partialSolution[i][j] = 0;
+			}
+		}
+	}
+
+	// Temp
+	Ranking partialRanking(size, partialSolution);
+	int numComponents = strongly_connected_components(partialRanking);
+
+	freeMemory2D(partialSolution, size);
+
+	cout << "Num Components: " << numComponents << " Size: " << size << endl;
+
+	return numComponents == size;
 }
 
 LinearOrder getHeuristicSolution (Ranking& ranking, IloArray<IloNumArray> vars) {
@@ -259,18 +288,20 @@ ILOHEURISTICCALLBACK4(LegacyHeuristicCallback, IloCplex, cplex, IloArray<IloBool
 		IloNumArray newSolution(env, size * size);
 
 		// Compute Heuristic Solution
-		LinearOrder order = getHeuristicSolution(ranking, vars);
+		if (isFeasible(ranking, vars)) {
+			LinearOrder order = getHeuristicSolution(ranking, vars);
 
-		// Decode Heuristic Solution
-		for (int i = 0; i < size; i++) {
-			for (int j = i + 1; j < size; j++) {
-				newSolution[order[i] * size + order[j]] = 1;
+			// Decode Heuristic Solution
+			for (int i = 0; i < size; i++) {
+				for (int j = i + 1; j < size; j++) {
+					newSolution[order[i] * size + order[j]] = 1;
+				}
 			}
-		}
-		int newObjective = ranking.getWeight(order);
+			int newObjective = ranking.getWeight(order);
 
-		// Set Solution
-		setSolution(flattenedX, newSolution, newObjective);
+			// Set Solution
+			setSolution(flattenedX, newSolution, newObjective);
+		}
 
 		// Free Memory
 		freeMemory(vars);
