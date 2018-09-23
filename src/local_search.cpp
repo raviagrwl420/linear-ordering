@@ -1,7 +1,10 @@
 #include<local_search.h>
 
 // Perform local search on the passed linear order
-LinearOrder localSearch (int size, int** matrix, LinearOrder order) {
+LinearOrder localSearch (const Ranking& ranking, LinearOrder order) {
+	int size = ranking.getSize();
+	int** matrix = ranking.getMatrix();
+
 	for (int i = 0; i < size; i++) {
 		int max_improvement = 0;
 		int improvement = 0;
@@ -29,7 +32,10 @@ LinearOrder localSearch (int size, int** matrix, LinearOrder order) {
 }
 
 // Perform local search on the passed linear order
-LinearOrder localSearchExpensive (int size, int** matrix, LinearOrder order) {
+LinearOrder localSearchExpensive (const Ranking& ranking, LinearOrder order) {
+	int size = ranking.getSize();
+	int** matrix = ranking.getMatrix();
+
 	int max_improvement = 0;
 	do {
 		int improvement = 0;
@@ -59,22 +65,7 @@ LinearOrder localSearchExpensive (int size, int** matrix, LinearOrder order) {
 	return order;
 }
 
-int** extractSubMatrix(int** matrix, int size, vector<int> nodes) {
-	int** subMatrix = new int*[size];
-	for (int i = 0; i < size; i++) {
-		subMatrix[i] = new int[size];
-	}
-
-	for (int i = 0; i < size; i++) {
-		for (int j = 0; j < size; j++) {
-			subMatrix[i][j] = matrix[nodes[i]][nodes[j]];
-		}
-	}
-
-	return subMatrix;
-}
-
-LinearOrder localEnumeration (Ranking& ranking, LinearOrder order, int windowSize) {
+LinearOrder localEnumeration (const Ranking& ranking, LinearOrder order, int windowSize) {
 	int size = ranking.getSize();
 	int** matrix = ranking.getMatrix();
 	vector<int> orderVec = order.getOrder();
