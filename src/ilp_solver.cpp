@@ -91,7 +91,7 @@ void setCplexParams (IloCplex cplex) {
 	cplex.setParam(IloCplex::Param::MIP::Tolerances::Integrality, EPS);
 	cplex.setParam(IloCplex::Param::Simplex::Tolerances::Feasibility, EPS);
 	cplex.setParam(IloCplex::Param::MIP::Strategy::Search, 1);
-	cplex.setParam(IloCplex::Param::MIP::Strategy::VariableSelect, 3);
+	cplex.setParam(IloCplex::Param::MIP::Strategy::VariableSelect, 1);
 	// cplex.setParam(IloCplex::Param::MIP::Strategy::NodeSelect, 3);
 	// cplex.setParam(IloCplex::Param::Parallel, 1);
 	// cplex.setParam(IloCplex::Param::Threads, 3);
@@ -107,6 +107,9 @@ void setCallbacks (Ranking& ranking, IloCplex cplex, IloEnv env, IloArray<IloBoo
 	cplex.use(LegacyLazyConstraintCallback(env, cplex, x, obj, ranking));
 	cplex.use(LegacyUserCutCallback(env, cplex, x, obj, ranking, constraints));
 	cplex.use(LegacyHeuristicCallback(env, cplex, x, obj, ranking));
+
+	cplex.use(LegacyBranchCallback(env, cplex, x, ranking));
+	cplex.use(LegacyNodeCallback(env));
 }
 
 // Add MIP Start
@@ -316,6 +319,8 @@ LinearOrder solvePartition (Ranking& ranking, int** partialSolution) {
 		IloModel model(env);
 		IloCplex cplex(model);
 
+		cplex.setOut(env.getNullStream());
+
 		// Initialize variable array
 		IloBoolVarArray x(env, size);
 
@@ -333,7 +338,10 @@ LinearOrder solvePartition (Ranking& ranking, int** partialSolution) {
 		for (int i = 0; i < size; i++) {
 			for (int j = 0; j < size; j++) {
 				if (i != j) {
-					obj += (matrix[i][j] * (x[i] - x[j]));
+					// if (partialSolution == NULL)
+						obj += (matrix[i][j] * (x[i] - x[j]));
+					// else
+					// 	obj += (partialSolution[i][j] * (x[i] - x[j]));	
 					// obj += (matrix[i][j] * y[i][j]);
 				}
 			}
@@ -418,6 +426,7 @@ LinearOrder solvePartition (Ranking& ranking, int** partialSolution) {
 		freeMemory1D(values, size);
 		freeMemory1D(partition1, size1);
 		freeMemory1D(partition2, size2);
+		env.end();
 
 		return LinearOrder(finalOrder);
 	} catch (IloException& e) {
