@@ -88,6 +88,7 @@ float** solveLP (Ranking& ranking) {
 }
 
 void setCplexParams (IloCplex cplex) {
+	// cplex.setParam(IloCplex::Param::TimeLimit, 600);
 	cplex.setParam(IloCplex::Param::MIP::Tolerances::Integrality, EPS);
 	cplex.setParam(IloCplex::Param::Simplex::Tolerances::Feasibility, EPS);
 	cplex.setParam(IloCplex::Param::MIP::Strategy::Search, 1);
@@ -98,7 +99,7 @@ void setCplexParams (IloCplex cplex) {
 	// cplex.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, 5);
 }
 
-void setCallbacks (Ranking& ranking, IloCplex cplex, IloEnv env, IloArray<IloBoolVarArray> x, IloObjective obj, vector<Constraint> constraints) {
+void setMandatoryCallbacks (Ranking& ranking, IloCplex cplex, IloEnv env, IloArray<IloBoolVarArray> x, IloObjective obj, vector<Constraint> constraints) {
 	// Add callback using generic callback
 	// HeuristicCallback cb(x, matrix);
 	// cplex.use(&cb, IloCplex::Callback::Context::Id::Relaxation);
@@ -106,10 +107,13 @@ void setCallbacks (Ranking& ranking, IloCplex cplex, IloEnv env, IloArray<IloBoo
 	// Add callback using legacy callback
 	cplex.use(LegacyLazyConstraintCallback(env, cplex, x, obj, ranking));
 	cplex.use(LegacyUserCutCallback(env, cplex, x, obj, ranking, constraints));
-	cplex.use(LegacyHeuristicCallback(env, cplex, x, obj, ranking));
+}
 
-	cplex.use(LegacyBranchCallback(env, cplex, x, ranking));
-	cplex.use(LegacyNodeCallback(env));
+void setOptionalCallbacks (Ranking& ranking, IloCplex cplex, IloEnv env, IloArray<IloBoolVarArray> x, IloObjective obj, vector<Constraint> constraints) {
+	// cplex.use(LegacyHeuristicCallback(env, cplex, x, obj, ranking));
+
+	// cplex.use(LegacyBranchCallback(env, cplex, x, ranking));
+	// cplex.use(LegacyNodeCallback(env));
 }
 
 // Add MIP Start
@@ -265,7 +269,11 @@ LinearOrder solveILP (Ranking& ranking, bool disableOutput) {
 		setCplexParams(cplex);
 
 		// Set callbacks
-		setCallbacks(ranking, cplex, env, x, obj, constraints);
+		setMandatoryCallbacks(ranking, cplex, env, x, obj, constraints);
+
+		if (!disableOutput) {
+			setOptionalCallbacks(ranking, cplex, env, x, obj, constraints);
+		}
 
 		// Add MIP Start
 		// addMIPStart(ranking, cplex, env, x);

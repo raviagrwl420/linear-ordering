@@ -35,14 +35,22 @@ void freeMemory (IloArray<IloNumArray> vars) {
 
 class OurNodeData: public NodeData {
 	public:
-		double heuristicSolution;
+		double heuristicSolution = 0;
+		bool allCutsApplied = false;
 
-		OurNodeData (double solution) {
-			heuristicSolution = solution;
+		OurNodeData () {}
+
+		OurNodeData (double heuristicSolution): heuristicSolution(heuristicSolution) {}
+
+		void setHeuristicSolution (double heuristicSolution) {
+			this->heuristicSolution = heuristicSolution;
 		}
 
-		~OurNodeData () {
+		void setAllCutsApplied (bool allCutsApplied) {
+			this->allCutsApplied = allCutsApplied;
 		}
+
+		~OurNodeData () {}
 };
 
 ILOLAZYCONSTRAINTCALLBACK4(LegacyLazyConstraintCallback, IloCplex, cplex, IloArray<IloBoolVarArray>, x, IloObjective, obj, Ranking, ranking) {
@@ -178,6 +186,17 @@ ILOUSERCUTCALLBACK5(LegacyUserCutCallback, IloCplex, cplex, IloArray<IloBoolVarA
 
 		end:;
 
+		// Check if all cuts have been applied
+		NodeData* nodeData = getNodeData();
+		OurNodeData* ourNodeData;
+		if (nodeData != NULL) {
+			ourNodeData = dynamic_cast<OurNodeData*>(nodeData); 
+		} else {
+			ourNodeData = new OurNodeData();
+			setNodeData(ourNodeData);
+		}
+		ourNodeData->setAllCutsApplied(count == 0);
+
 		// Free Memory
 		freeMemory(vars);
 		freeMemory(bestInteger);
@@ -228,34 +247,6 @@ LinearOrder getOurAlternateHeuristicSolution(Ranking& ranking, int** partialSolu
 	return solvePartition(ranking, partialSolution);
 }
 
-bool isFeasible (Ranking& ranking, IloArray<IloNumArray> vars) {
-	int size = ranking.getSize();
-
-	// Initialize new array for partial solution
-	int** partialSolution = new int*[size];
-	for (int i = 0; i < size; i++) {
-		partialSolution[i] = new int[size];
-	}
-
-	for (int i = 0; i < size; i++) {
-		for (int j = 0; j < size; j++) {
-			if ( 1 - EPS <= vars[i][j]) {
-				partialSolution[i][j] = 1;
-			} else {
-				partialSolution[i][j] = 0;
-			}
-		}
-	}
-
-	// Temp
-	Ranking partialRanking(size, partialSolution);
-	int numComponents = strongly_connected_components(partialRanking);
-
-	freeMemory2D(partialSolution, size);
-
-	return numComponents == size;
-}
-
 LinearOrder getHeuristicSolution (Ranking& ranking, IloArray<IloNumArray> vars) {
 	int size = ranking.getSize();
 
@@ -292,18 +283,26 @@ LinearOrder getHeuristicSolution (Ranking& ranking, IloArray<IloNumArray> vars) 
 
 	// cout << endl << endl;
 	// cout << "Simple Objective: " << ranking.getWeight(simple) << endl;
-	cout << "Ours Objective: " << ranking.getWeight(ours) << endl;
+	// cout << "Ours Objective: " << ranking.getWeight(ours) << endl;
 	cout << "Ours Alternate Objective: " << ranking.getWeight(oursAlternate) << endl;
 	// cout << endl << endl;
 
 	freeMemory2D(fractionals, size);
 	freeMemory2D(partialSolution, size);
 
-	return ours;
+	return oursAlternate;
 }
 
 ILOHEURISTICCALLBACK4(LegacyHeuristicCallback, IloCplex, cplex, IloArray<IloBoolVarArray>, x, IloObjective, obj, Ranking, ranking) {
 	try {
+		// Check if all cuts have been applied to node
+		NodeData* nodeData = getNodeData();
+		OurNodeData* ourNodeData = dynamic_cast<OurNodeData*>(nodeData);
+
+		if (ourNodeData == NULL || !ourNodeData->allCutsApplied) {
+			return; // Return if all cuts have not been applied
+		}
+
 		// Get size and matrix from ranking
 		int size = ranking.getSize();
 		int** matrix = ranking.getMatrix();
@@ -331,21 +330,18 @@ ILOHEURISTICCALLBACK4(LegacyHeuristicCallback, IloCplex, cplex, IloArray<IloBool
 		// Initialize a new variable to store the new feasible solution
 		IloNumArray newSolution(env, size * size);
 
-		// Compute Heuristic Solution
-		if (isFeasible(ranking, vars)) {
-			LinearOrder order = getHeuristicSolution(ranking, vars);
+		LinearOrder order = getHeuristicSolution(ranking, vars);
 
-			// Decode Heuristic Solution
-			for (int i = 0; i < size; i++) {
-				for (int j = i + 1; j < size; j++) {
-					newSolution[order[i] * size + order[j]] = 1;
-				}
+		// Decode Heuristic Solution
+		for (int i = 0; i < size; i++) {
+			for (int j = i + 1; j < size; j++) {
+				newSolution[order[i] * size + order[j]] = 1;
 			}
-			int newObjective = ranking.getWeight(order);
-
-			// Set Solution
-			setSolution(flattenedX, newSolution, newObjective);
 		}
+		int newObjective = ranking.getWeight(order);
+
+		// Set Solution
+		setSolution(flattenedX, newSolution, newObjective);
 
 		// Free Memory
 		freeMemory(vars);
@@ -442,6 +438,7 @@ ILONODECALLBACK0(LegacyNodeCallback) {
 		}
 	}
 
+	cout << "Max Node Estimate: " << maxEstimate << endl;
 	selectNode(maxNodeId);
 }
 
