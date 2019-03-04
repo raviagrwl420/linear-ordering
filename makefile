@@ -28,7 +28,8 @@ CONCERTLIBDIR := $(CONCERTDIR)/lib/$(SYSTEM)/$(LIBFORMAT)
 ## Project
 
 # Source Extention
-SRCEXT := cpp
+CPP_SRCEXT := cpp
+C_SRCEXT := c
 
 # Project Directories
 IDIR := include
@@ -36,10 +37,13 @@ SRCDIR := src
 BUILDDIR := build
 
 # Sources
-SOURCES := $(shell find $(SRCDIR) -type f -name *.$(SRCEXT))
+CPP_SOURCES := $(shell find $(SRCDIR) -type f -name *.$(CPP_SRCEXT))
+C_SOURCES := $(shell find $(SRCDIR) -type f -name *.$(C_SRCEXT))
 
 # Objects
-OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
+CPP_OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(CPP_SOURCES:.$(CPP_SRCEXT)=.o))
+C_OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(C_SOURCES:.$(C_SRCEXT)=.o))
+OBJECTS := $(CPP_OBJECTS) $(C_OBJECTS)
 
 # Target
 TARGET := built
@@ -69,7 +73,12 @@ $(TARGET): $(OBJECTS)
 	$(CC) $^ -o $@ $(CPPFLAGS)
 
 # Build Object Files
-$(BUILDDIR)/%.o: $(SRCDIR)/%.$(SRCEXT)
+$(BUILDDIR)/%.o: $(SRCDIR)/%.$(CPP_SRCEXT)
+	@mkdir -p $(BUILDDIR)
+	$(CC) -c -o $@ $< $(CPPFLAGS)
+
+# Build C Object Files
+$(BUILDDIR)/%.o: $(SRCDIR)/%.$(C_SRCEXT)
 	@mkdir -p $(BUILDDIR)
 	$(CC) -c -o $@ $< $(CPPFLAGS)
 
