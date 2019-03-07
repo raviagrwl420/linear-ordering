@@ -6,3 +6,5 @@
 #include<io.h>
 #include<graph.h>
 #include<ilp_solver.h>
+
+#include<ilp_solver_c.h>
