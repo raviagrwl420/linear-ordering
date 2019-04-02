@@ -68,6 +68,9 @@ enum CRITERIA {VIOLATION, OBJ_FUNCTION_PARALLELISM};
 CPXLONG MAX_ITERATIONS = 100; 
 CPXLONG MAX_ITERATIONS_DEFAULT = 9223372036700000000;
 
+/* define params for branching */
+CPXLONG MAX_ITERATIONS_BRANCH = 1000;
+
 /* define a function to initialize a new cut array */
 void initCutArray(CUT_ARRAY* cuts, int initialSize) {
     cuts->array = (CUT*) malloc (initialSize * sizeof(CUT));
@@ -468,12 +471,139 @@ static int addDicycleConstraints(CPXENVptr env, CPXLPptr lp, int size, int** mat
         }
     }
 
-    // return CPXaddlazyconstraints(env, lp, num_const, num_const * num_nz,
-    //                  rhs, sense, rmatbeg, rmatind, rmatval, NULL);
+    return CPXXaddlazyconstraints(env, lp, num_const, num_const * num_nz,
+                     rhs, sense, rmatbeg, rmatind, rmatval, NULL);
 
-    return CPXXaddrows(env, lp, 0, num_const, num_const * num_nz,
-                      rhs, sense, rmatbeg, rmatind, rmatval, NULL, NULL);
+    // return CPXXaddrows(env, lp, 0, num_const, num_const * num_nz,
+    //                   rhs, sense, rmatbeg, rmatind, rmatval, NULL, NULL);
 }
+
+/* Implement helper methods for branching based on node position */
+double eval_branch_candidate (CPXCENVptr env, CPXLPptr lp, USER_HANDLE u, int node, int position, int up) {
+    RANKING r = u.r;
+    int size = r.size;
+
+    CPXENVptr envptr = u.envptr;
+    
+    int status = 0;
+
+    /* Get the objective value */
+    double preobj;
+    status = CPXXgetobjval(env, lp, &preobj);
+    // printf("Pre Obj: %f\n", preobj);
+
+    /* Get the number of rows */
+    int nRows = CPXXgetnumrows(env, lp);
+
+    /* Prepare the cut */
+    CPXNNZ rmatbeg[] = {0, size - 1};
+    int rmatind[2 * (size - 1)];
+    double rmatval[2 * (size - 1)];
+    
+    int k = 0;
+    for (int j = 0; j < size; j++) {
+        if (j != node) {
+            rmatind[k] = get_ind(r, j, node);
+            rmatval[k] = 1;
+            rmatind[size - 1 + k] = get_ind(r, node, j);
+            rmatval[size - 1 + k] = 1;
+            k++;
+        }
+    }
+    double rhs[] = {position, size - 1 - position};
+    char senses[] = {'L', 'L'};
+    if (up) {
+        rhs[0] = position;
+        rhs[1] = size - 1 - position;
+        senses[0] = 'G';
+        senses[1] = 'G';
+    }
+
+    /* Add the cut */
+    status = CPXXaddrows(env, lp, 0, 1, NUM_NNZ_3, rhs, senses, rmatbeg, rmatind, rmatval, NULL, NULL);
+    
+    /* Set the maximum number of iterations */
+    status = CPXXsetlongparam(envptr, CPX_PARAM_ITLIM, MAX_ITERATIONS_BRANCH);
+    /* Run dual opt */
+    status = CPXXdualopt(env, lp);
+    /* Reset the maximum number of iterations */
+    status = CPXXsetlongparam(envptr, CPX_PARAM_ITLIM, MAX_ITERATIONS_DEFAULT);
+
+    /* Get the solution again */
+    double postobj;
+    status = CPXXgetobjval(env, lp, &postobj);
+    // printf("Post Obj: %f\n", postobj    );
+
+    /* Delete row and use primal opt */
+    status = CPXXdelrows(env, lp, nRows, nRows);
+    status = CPXXprimopt(env, lp);
+
+    return preobj - postobj;
+}
+
+static int CPXPUBLIC branchcallback (CPXCENVptr env, void *cbdata, int wherefrom,
+           void *cbhandle, int type, CPXDIM sos, int nodecnt, CPXDIM bdcnt,
+           const CPXDIM *nodebeg, const CPXDIM *indices, const char *lu,
+           const double *bd, const double *nodeest, int *useraction_p) {
+
+    USER_HANDLE u = *((USER_HANDLE*) cbhandle);
+    RANKING r = u.r;
+    int size = r.size;
+    int num_vars = r.num_vars;
+    int** matrix = r.matrix;
+
+    CPXLPptr nodelp = u.nodelp;
+    CPXLPptr copy = u.copy;
+    int* cstat = u.cstat;
+    int* rstat = u.rstat;
+    double* x = u.x;
+
+    int status = 0;
+    double objval;
+
+    /* Get the node lp */
+    CPXXgetcallbacknodelp(env, cbdata, wherefrom, &nodelp);
+
+    /* Get the number of columns and rows in node lp */
+    int nCols = CPXXgetnumcols(env, nodelp);
+    int nRows = CPXXgetnumrows(env, nodelp);
+
+    /* Clone the problem */
+    copy = CPXXcloneprob(env, nodelp, &status);
+
+    /* Get the base */
+    cstat = (int *) malloc (nCols * sizeof (int));
+    rstat = (int *) malloc (nRows * sizeof (int));
+    status = CPXXgetbase(env, nodelp, cstat, rstat);
+
+    /* Copyt the base to the cloned problem */
+    status = CPXXcopybase(env, copy, cstat, rstat);
+
+    /* Run dual opt on the cloned problem */
+    status = CPXXdualopt(env, copy);
+
+    /* Get the objective value */
+    status = CPXXgetobjval(env, nodelp, &objval);
+
+    double max_down = 0;
+    double max_up = 0;
+    for (int i = 0; i < size; i++) {
+        double down = eval_branch_candidate(env, copy, u, 0, size/2, false);
+        double up = eval_branch_candidate(env, copy, u, 0, size/2, true);
+        // printf("Node: %2d\t down: %2.4f\t up: %2.4f\n", i, down, up);
+
+        if (up > max_up) max_up = up;
+        if (down > max_down) max_down = down;
+    }
+    printf("Max Down: %f Max Up: %f\n", max_down, max_up);
+
+    for (int i = 0; i < nodecnt; i++) {
+        CPXCNT random;
+        CPXXbranchcallbackbranchbds(env, cbdata, wherefrom, 1, &indices[i], &lu[i], &bd[i], nodeest[i], cbhandle, &random);    
+    }
+
+    return status;
+};
 
 int solve_c(int size, int** matrix) {
     int num_vars = size * size;
@@ -502,7 +632,7 @@ int solve_c(int size, int** matrix) {
     double x[num_vars];
 
     int fromtable = 0;
-    int lazy = 1;
+    int lazy = 0;
     int usecallback = 1;
 
     /* Create CPLEX environment and model. */
@@ -601,20 +731,21 @@ int solve_c(int size, int** matrix) {
         goto TERMINATE;
     }
     status = CPXXsetintparam(env, CPX_PARAM_MIPINTERVAL, 1);
-    status = CPXXsetintparam(env, CPXPARAM_MIP_Limits_Nodes, 0);
+    status = CPXXsetintparam(env, CPXPARAM_MIP_Limits_Nodes, 1);
 
     if ( lazy ) {
-        int nCols = CPXXgetnumcols(env, lp);
-        int nRows = CPXXgetnumrows(env, lp);
-        printf("Number of cols at start: %d\n", nCols);
-        printf("Number of rows at start: %d\n", nRows);
-        status = CPXXsetlazyconstraintcallbackfunc(env, lazycallback, &u);
-        status = CPXXsetusercutcallbackfunc(env, cutcallback, &u);
+        // int nCols = CPXXgetnumcols(env, lp);
+        // int nRows = CPXXgetnumrows(env, lp);
+        // printf("Number of cols at start: %d\n", nCols);
+        // printf("Number of rows at start: %d\n", nRows);
+        // status = CPXXsetlazyconstraintcallbackfunc(env, lazycallback, &u);
+        // status = CPXXsetusercutcallbackfunc(env, cutcallback, &u);
         if ( status != 0 ) {
             fprintf(stderr, "Failed to add callback: %s\n", CPXXgeterrorstring(env, status, errbuf));
             goto TERMINATE;
         }
     }
+    status = CPXXsetbranchcallbackfunc(env, branchcallback, &u);
 
     /* Solve the model. */
     CPXXchgobjsen (env, lp, CPX_MAX);
