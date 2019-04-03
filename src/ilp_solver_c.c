@@ -496,31 +496,26 @@ double eval_branch_candidate (CPXCENVptr env, CPXLPptr lp, USER_HANDLE u, int no
     int nRows = CPXXgetnumrows(env, lp);
 
     /* Prepare the cut */
-    CPXNNZ rmatbeg[] = {0, size - 1};
-    int rmatind[2 * (size - 1)];
-    double rmatval[2 * (size - 1)];
+    CPXNNZ rmatbeg[] = {0};
+    int rmatind[size - 1];
+    double rmatval[size - 1];
     
     int k = 0;
     for (int j = 0; j < size; j++) {
         if (j != node) {
             rmatind[k] = get_ind(r, j, node);
             rmatval[k] = 1;
-            rmatind[size - 1 + k] = get_ind(r, node, j);
-            rmatval[size - 1 + k] = 1;
             k++;
         }
     }
-    double rhs[] = {position, size - 1 - position};
-    char senses[] = {'L', 'L'};
+    double rhs[] = {position};
+    char senses[] = {'L'};
     if (up) {
-        rhs[0] = position;
-        rhs[1] = size - 1 - position;
         senses[0] = 'G';
-        senses[1] = 'G';
     }
 
     /* Add the cut */
-    status = CPXXaddrows(env, lp, 0, 1, NUM_NNZ_3, rhs, senses, rmatbeg, rmatind, rmatval, NULL, NULL);
+    status = CPXXaddrows(env, lp, 0, 1, size - 1, rhs, senses, rmatbeg, rmatind, rmatval, NULL, NULL);
     
     /* Set the maximum number of iterations */
     status = CPXXsetlongparam(envptr, CPX_PARAM_ITLIM, MAX_ITERATIONS_BRANCH);
@@ -588,14 +583,14 @@ static int CPXPUBLIC branchcallback (CPXCENVptr env, void *cbdata, int wherefrom
     double max_down = 0;
     double max_up = 0;
     for (int i = 0; i < size; i++) {
-        double down = eval_branch_candidate(env, copy, u, 0, size/2, false);
-        double up = eval_branch_candidate(env, copy, u, 0, size/2, true);
-        // printf("Node: %2d\t down: %2.4f\t up: %2.4f\n", i, down, up);
+        double down = eval_branch_candidate(env, copy, u, i, size/2, false);
+        double up = eval_branch_candidate(env, copy, u, i, size/2, true);
+        printf("Node: %2d\t down: %2.4f\t up: %2.4f\n", i, down, up);
 
         if (up > max_up) max_up = up;
         if (down > max_down) max_down = down;
     }
-    printf("Max Down: %f Max Up: %f\n", max_down, max_up);
+    // printf("Max Down: %f Max Up: %f\n", max_down, max_up);
 
     for (int i = 0; i < nodecnt; i++) {
         CPXCNT random;
@@ -632,7 +627,7 @@ int solve_c(int size, int** matrix) {
     double x[num_vars];
 
     int fromtable = 0;
-    int lazy = 0;
+    int lazy = 1;
     int usecallback = 1;
 
     /* Create CPLEX environment and model. */
@@ -738,8 +733,8 @@ int solve_c(int size, int** matrix) {
         // int nRows = CPXXgetnumrows(env, lp);
         // printf("Number of cols at start: %d\n", nCols);
         // printf("Number of rows at start: %d\n", nRows);
-        // status = CPXXsetlazyconstraintcallbackfunc(env, lazycallback, &u);
-        // status = CPXXsetusercutcallbackfunc(env, cutcallback, &u);
+        status = CPXXsetlazyconstraintcallbackfunc(env, lazycallback, &u);
+        status = CPXXsetusercutcallbackfunc(env, lazycallback, &u);
         if ( status != 0 ) {
             fprintf(stderr, "Failed to add callback: %s\n", CPXXgeterrorstring(env, status, errbuf));
             goto TERMINATE;
