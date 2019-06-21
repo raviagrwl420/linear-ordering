@@ -27,18 +27,22 @@ class Ranking {
 	private:
 		int size;
 		int **matrix;
+		int *potentials;
 		ifstream inputFile;
 
 	public:
 		Ranking (const Ranking&);
 		Ranking (const char*);
-		Ranking (int size, int** matrix): size(size), matrix(matrix) {};
+		Ranking (int size, int** matrix);
 
 		int getSize () const;
 
 		void initiateMatrixFromFile ();
 		int **getMatrix () const;
 		void printMatrix () const;
+
+		void computePotentials ();
+		int *getPotentials () const;
 
 		int getWeight (vector<int>) const;
 		int getWeight (LinearOrder) const;

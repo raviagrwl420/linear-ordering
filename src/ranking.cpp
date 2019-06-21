@@ -14,11 +14,32 @@ vector<string> getTokens (string s, string delim) {
 Ranking::Ranking (const Ranking& original) {
 	size = original.size;
 	matrix = original.matrix;
+	potentials = original.potentials;
 }
 
 Ranking::Ranking (const char* s) {
 	inputFile = ifstream(s);
 	initiateMatrixFromFile();
+
+	computePotentials();
+}
+
+Ranking::Ranking (int size, int** matrix) {
+	this->size = size;
+	this->matrix = matrix;
+
+	computePotentials();
+}
+
+void Ranking::computePotentials () {
+	potentials = new int[size];
+	for (int i = 0; i < size; i++) {
+		potentials[i] = 0;
+		for (int j = 0; j < size; j++) {
+			if (i != j)
+				potentials[i] += matrix[i][j] - matrix[j][i];
+		}
+	}
 }
 
 int Ranking::getSize () const {
@@ -62,6 +83,10 @@ void Ranking::printMatrix () const {
 		}
 		cout << endl;
 	}
+}
+
+int *Ranking::getPotentials () const {
+	return potentials;
 }
 
 int Ranking::getWeight (vector<int> order) const {
