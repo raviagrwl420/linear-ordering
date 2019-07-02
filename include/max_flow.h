@@ -20,6 +20,7 @@ using boost::adjacency_list_traits;
 using boost::adjacency_list;
 using boost::vecS;
 using boost::directedS;
+using boost::bidirectionalS;
 using boost::property;
 using boost::vertex_name_t;
 using boost::edge_capacity_t;
@@ -33,17 +34,17 @@ using boost::graph_traits;
 using boost::tie;
 using boost::add_vertex;
 
-typedef adjacency_list_traits<vecS, vecS, directedS> Traits;
+typedef adjacency_list_traits<vecS, vecS, bidirectionalS> Traits;
 typedef adjacency_list<
 			vecS,
 			vecS,
-			directedS,
+			bidirectionalS,
 			property<vertex_name_t, std::string>,
 			property<edge_capacity_t, long,
 				property<edge_residual_capacity_t, long,
 					property<edge_reverse_t, Traits::edge_descriptor> > >
 > Graph;
 
-int* solve_max_flow (Ranking& ranking, int** partial);
+vector<int> solve_max_flow (Ranking& ranking, int** partial);
 
 #endif

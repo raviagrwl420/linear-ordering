@@ -53,13 +53,13 @@ TARGET := built
 ## Flags
 
 # Include Directories
-INCDIRS := -I $(IDIR) -I $(CPLEXINCDIR) -I $(CONCERTINCDIR)
+INCDIRS := -I $(IDIR) -I $(CPLEXINCDIR) -I $(CONCERTINCDIR) -I /usr/include
 
 # Linker Directories
 LNDIRS := -L $(CPLEXLIBDIR) -L $(CONCERTLIBDIR)
 
 # Linker Flags
-LNFLAGS := -lilocplex -lconcert -lcplex -lm -lpthread -ldl
+LNFLAGS := -lilocplex -lconcert -lcplex -lm -lpthread -ldl -lboost_system -lboost_filesystem -lboost_timer
 
 # CPP Flags
 CPPFLAGS := -g -std=c++11 -w -DIL_STD $(INCDIRS) $(LNDIRS) $(LNFLAGS)

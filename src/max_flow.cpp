@@ -1,6 +1,6 @@
 #include<max_flow.h>
 
-int* solve_max_flow (Ranking& ranking, int** partial) {
+vector<int> solve_max_flow (Ranking& ranking, int** partial) {
 	int size = ranking.getSize();
 	int** matrix = ranking.getMatrix();
 	int* weights = ranking.getPotentials();
@@ -66,43 +66,41 @@ int* solve_max_flow (Ranking& ranking, int** partial) {
 	flow = push_relabel_max_flow(graph, s, t);
 
 	// Initialize an all zero array to store the solution
-	int partition[size] = {0};
+	vector<int> partition(size, 0);
 
-	graph_traits<Graph>::out_edge_iterator ei, e_end;
-	deque<Traits::vertex_descriptor> solution_vertices;
-	for (tie(ei, e_end) = out_edges(s, graph); ei != e_end; ++ei) {
+	// Construct the residual graph
+	Graph residualGraph;
+	for (int i = 0; i < size + 3; i++) {
+		add_vertex(residualGraph);
+	}
+
+	graph_traits<Graph>::edge_iterator ei, e_end;
+	for (tie(ei, e_end) = edges(graph); ei != e_end; ++ei) {
 		if (residual_capacity[*ei] > 0) {
-			partition[target(*ei, graph)] = 1;
-			solution_vertices.push_back(target(*ei, graph));
+			Traits::vertex_descriptor u = source(*ei, graph);
+			Traits::vertex_descriptor v = target(*ei, graph);
+			add_edge(u, v, residualGraph);
 		}
 	}
 
-	while (!solution_vertices.empty()) {
-		Traits::vertex_descriptor v = solution_vertices.front();
+	graph_traits<Graph>::out_edge_iterator oei, oe_end;
+	deque<Traits::vertex_descriptor> solution_vertices;
+	solution_vertices.push_back(s);
+	while(!solution_vertices.empty()) {
+		Traits::vertex_descriptor first = solution_vertices.front();
 		solution_vertices.pop_front();
 
-		for (tie(ei, e_end) = out_edges(v, graph); ei != e_end; ++ei) {
-			if (capacity[*ei] > 0) {
-				Traits::vertex_descriptor next = target(*ei, graph);
-				if (next != t && partition[next] != 1) {
-					partition[next] = 1;
-					solution_vertices.push_back(next);
-				}
+		for (tie(oei, oe_end) = out_edges(first, residualGraph); oei != oe_end; ++oei) {
+			Traits::vertex_descriptor v = target(*oei, residualGraph);
+			if (partition[v] != 1) {
+				partition[v] = 1;
+				solution_vertices.push_back(v);
 			}
-		}
+		}	
 	}
 
 	verts.clear();
 	solution_vertices.clear();
-
-	int sum = 0;
-	for (int i = 0; i < size; i++) {
-		if (partition[i] == 1) {
-			sum += weights[i];
-		}
-	}
-
-	cout << "Flow OPT!! " << sum << endl;
 
 	return partition;
 }

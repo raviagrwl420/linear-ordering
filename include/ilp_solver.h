@@ -10,6 +10,7 @@
 
 #include<ilcplex/ilocplex.h>
 #include<math.h>
+#include<stdlib.h>
 
 float** solveLP (Ranking&);
 LinearOrder solveILP (Ranking&, bool disableOutput);

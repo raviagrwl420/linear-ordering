@@ -1,5 +1,8 @@
 #include<ilp_solver.h>
 #include<legacy_callback.h>
+#include<max_flow.h>
+
+#include<boost/timer/timer.hpp>
 
 #define EPS 1e-8
 #define MIP_START_MIN_SIZE 35
@@ -110,7 +113,7 @@ void setMandatoryCallbacks (Ranking& ranking, IloCplex cplex, IloEnv env, IloArr
 }
 
 void setOptionalCallbacks (Ranking& ranking, IloCplex cplex, IloEnv env, IloArray<IloBoolVarArray> x, IloObjective obj, vector<Constraint> constraints) {
-	// cplex.use(LegacyHeuristicCallback(env, cplex, x, obj, ranking));
+	cplex.use(LegacyHeuristicCallback(env, cplex, x, obj, ranking));
 
 	// cplex.use(LegacyBranchCallback(env, cplex, x, ranking));
 	// cplex.use(LegacyNodeCallback(env));
@@ -323,6 +326,10 @@ LinearOrder solvePartition (Ranking& ranking, int** partialSolution) {
 
 	try {
 		// Initialize environment and model
+
+		boost::timer::cpu_timer t;
+		t.start();
+
 		IloEnv env;
 		IloModel model(env);
 		IloCplex cplex(model);
@@ -379,6 +386,57 @@ LinearOrder solvePartition (Ranking& ranking, int** partialSolution) {
 
 		// Solve
 		cplex.solve();
+
+		cout << "CPLEX Time Elapsed!! " << boost::timer::format(t.elapsed()) << endl;
+		cout << "CPLEX OPT!! " << cplex.getObjValue() << endl;
+
+		t.start();
+		vector<int> part = solve_max_flow(ranking, partialSolution);
+		cout << "Flow Time Elapsed!! " << boost::timer::format(t.elapsed()) << endl;
+
+		int sum = 0;
+		int* weights = ranking.getPotentials();
+		for (int i = 0; i < size; i++) {
+			if (part[i] == 1) {
+				sum += weights[i];
+			}
+		}
+		cout << "Flow OPT!! " << sum << endl;
+
+		if (cplex.getObjValue() != sum) {
+			for (int i = 0; i < size; i++) {
+				cout << std::setw(4) << i << " ";
+			}
+			cout << endl;
+
+			cout << "Potentials!" << endl;
+			for (int i = 0; i < size; i++) {
+				cout << std::setw(4) << weights[i] << " ";
+			}
+			cout << endl;
+
+			cout << "CPLEX Solution!" << endl;
+			for (int i = 0; i < size; i++) {
+				cout << std::setw(4) << cplex.getValue(x[i]) << " ";
+			}
+			cout << endl;
+
+			cout << "Flow Solution!" << endl;
+			for (int i = 0; i < size; i++) {
+				cout << std::setw(4) << part[i] << " ";
+			}
+			cout << endl;
+
+			cout << "Partial Solution!" << endl;
+			for (int i = 0; i < size; i++) {
+				for (int j = 0; j < size; j++) {
+					cout << std::setw(4) << partialSolution[i][j] << " ";
+				}
+				cout << std::setw(4) << i << endl;
+			}
+
+			exit(EXIT_FAILURE);
+		}
 
 		// Decode solution
 		// Count number of nodes in partition
